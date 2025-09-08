@@ -14,32 +14,34 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static tools.ds.modkit.mappings.KeyParser.Kind.LIST;
+
 /**
  * NodeMap
- *
+ * <p>
  * - Top-level properties are ALWAYS ArrayNodes (a log/history).
  * - PUT:
- *     "key"         -> append to $.key[]
- *     "key[idx]"    -> set $.key[idx] (pad with nulls)
- *     Direct deep path (no wildcards, no recursive descent):
- *       - choose top array entry: last (create one if empty) OR explicit [idx]
- *       - recursively create containers; when a segment references an existing ArrayNode
- *         WITHOUT specifying an [index], it targets the LAST element (creating one if empty).
- *         Examples:
- *           nums.arrayC.tag1    -> uses $.nums[-1].arrayC[-1].tag1
- *           nums.arrayD         -> sets $.nums[-1].arrayD[-1] (append or overwrite last)
- *     Wildcard write:
- *       - update only existing matches; DO NOT create
+ * "key"         -> append to $.key[]
+ * "key[idx]"    -> set $.key[idx] (pad with nulls)
+ * Direct deep path (no wildcards, no recursive descent):
+ * - choose top array entry: last (create one if empty) OR explicit [idx]
+ * - recursively create containers; when a segment references an existing ArrayNode
+ * WITHOUT specifying an [index], it targets the LAST element (creating one if empty).
+ * Examples:
+ * nums.arrayC.tag1    -> uses $.nums[-1].arrayC[-1].tag1
+ * nums.arrayD         -> sets $.nums[-1].arrayD[-1] (append or overwrite last)
+ * Wildcard write:
+ * - update only existing matches; DO NOT create
  * - GET:
- *     "key"       -> "$.key[-1]"
- *     "key[idx]"  -> "$.key[idx]"
- *     Direct path: treats any array segment without explicit index as "last element"
- *                  (no creation); returns null if missing/out-of-range.
- *     Wildcards / deep-scan: tolerant list (returns [] on no matches).
- *
+ * "key"       -> "$.key[-1]"
+ * "key[idx]"  -> "$.key[idx]"
+ * Direct path: treats any array segment without explicit index as "last element"
+ * (no creation); returns null if missing/out-of-range.
+ * Wildcards / deep-scan: tolerant list (returns [] on no matches).
+ * <p>
  * - Guava support: registers GuavaModule so Guava types (e.g. ArrayListMultimap) convert to queryable JSON.
  * - POJO sidecar: custom Java objects are stored as JSON in-tree (queryable) and also recorded in a sidecar
- *                 (pointer -> POJONode) for retrieval of the original instance via getPojo(...).
+ * (pointer -> POJONode) for retrieval of the original instance via getPojo(...).
  */
 public class NodeMap {
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -67,10 +69,14 @@ public class NodeMap {
             .options(Option.ALWAYS_RETURN_LIST, Option.SUPPRESS_EXCEPTIONS)
             .build();
 
-    /** Store: each top-level key maps to an ArrayNode (history/log). */
+    /**
+     * Store: each top-level key maps to an ArrayNode (history/log).
+     */
     private final ObjectNode multi = MAPPER.createObjectNode();
 
-    /** Sidecar to keep original POJOs by JSON Pointer (so we can retrieve them later). */
+    /**
+     * Sidecar to keep original POJOs by JSON Pointer (so we can retrieve them later).
+     */
     private final Map<String, POJONode> pojoByPointer = new ConcurrentHashMap<>();
 
     // ============================== PUT ==============================
@@ -102,7 +108,8 @@ public class NodeMap {
             List<String> targets = JsonPath
                     .using(PATHS_TOLERANT_CFG)
                     .parse(multi)
-                    .read(jp, new TypeRef<List<String>>() {});
+                    .read(jp, new TypeRef<List<String>>() {
+                    });
             if (targets == null || targets.isEmpty()) return;
             DocumentContext ctx = JsonPath.using(NORMAL_CFG).parse(multi);
             for (String p : targets) {
@@ -163,47 +170,136 @@ public class NodeMap {
 
     // ============================== GET (JSON view) ==============================
 
-    public JsonNode get(Object key) {
+
+//    public Object get(KeyParser.KeyParse keys) {
+//        JsonNode n = get(keys.base());
+//        if (n == null) return null;
+//        if (n.isArray()) {
+//            ArrayNode arr = (ArrayNode) n;
+//            if (arr.isEmpty()) return null;
+//            List<Object> returnList = new ArrayList<>();
+//            for (int i : keys.intList()) {
+//                int index =  i < 0 ? arr.size() - 1 + i : i;
+//                if (arr.size() < index || index < 0) {
+//                    returnList.add(null);
+//                    continue;
+//                }
+//                returnList.add(arr.get(i));
+//            }
+//        }
+//        else
+//        {
+//
+//        }
+//
+//        if(keys.kind().equals(LIST))
+//            return;
+//
+//        if (arr.size() <= index) return null;
+//            if (index < 0) {
+//                int newIndex = arr.size() - 1 + index;
+//                if (newIndex < 0) return null;
+//                return arr.get(newIndex);
+//            }
+//            return arr.get(index);
+//
+//        if (index == 0 || index == -1) return null;
+//        return n; // already a scalar/object node
+//    }
+
+
+
+    public ArrayNode get(Object key) {
         final String raw = String.valueOf(key).trim();
 
-        // "name" → latest entry of top-level array
+        // "name" → latest entry of top-level array (scalar/object) ⇒ wrap as [value]
         if (isSimpleTopName(raw)) {
-            return readScalar("$." + raw + "[-1]");
+            JsonNode n = readScalar("$." + raw + "[-1]");
+            return toArrayNode(n);
         }
 
-        // "name[idx]" → that top-level index
+        // "name[idx]" → that top-level index (scalar/object) ⇒ wrap as [value]
         TopRef tr = parseTopRef(raw);
         if (tr != null && tr.idx != null) {
-            return readScalar("$." + tr.top + "[" + tr.idx + "]");
+            JsonNode n = readScalar("$." + tr.top + "[" + tr.idx + "]");
+            return toArrayNode(n);
         }
 
         String jp = ensureJsonPath(raw);
 
-        // DIRECT PATHS: resolve concretely (insert [-1] for arrays when index omitted).
-        // If any segment is missing/out-of-range, return null (no tolerant fallback for direct paths).
+        // Direct (no wildcards / deep-scan) → resolve concrete path and read scalar/object/array
         if (isDirectPath(jp)) {
             Resolution r = resolveConcreteJsonPath(jp);
             if (r.status == Status.NO_TARGET) {
-                return null;
+                return MAPPER.createArrayNode(); // []
             }
             if (r.status == Status.OK) {
                 try {
-                    return JsonPath.using(NORMAL_CFG).parse(multi).read(r.path, JsonNode.class);
+                    JsonNode n = JsonPath.using(NORMAL_CFG).parse(multi).read(r.path, JsonNode.class);
+                    return toArrayNode(n); // ensure ArrayNode
                 } catch (PathNotFoundException e) {
-                    return null;
+                    return MAPPER.createArrayNode(); // []
                 }
             }
-            // NOT_APPLICABLE: fall through
+            // NOT_APPLICABLE → fall through
         }
 
-        // Wildcards / deep-scan / anything else → tolerant list read
+        // Wildcards / deep-scan (tolerant) already produce a List ⇒ ArrayNode
         Object result = JsonPath.using(TOLERANT_LIST_CFG).parse(multi).read(jp);
-        return MAPPER.valueToTree(result); // [] on no matches
+        JsonNode n = MAPPER.valueToTree(result);
+        return (n != null && n.isArray()) ? (ArrayNode) n : toArrayNode(n);
     }
+
+
+    /**
+     * Returns a List<Object> by indexing into the ArrayNode returned by get(key).
+     * - Supports negative indices (Python-style): -1 = last, -2 = second last, etc.
+     * - Duplicates allowed (same index repeated).
+     * - Out-of-range indices insert null into the result.
+     * - Elements are converted to plain Java types (Map/List/Number/Boolean/String/null).
+     */
+    public List<Object> getAsList(Object key, int... indices) {
+        ArrayNode arr = (ArrayNode) get(key); // get(...) now always returns ArrayNode
+        int size = arr.size();
+        List<Object> out = new ArrayList<>(indices.length);
+
+        for (int idx : indices) {
+            // NOTE: correct negative-index math is size() + idx (e.g., -1 → last).
+            int eff = (idx >= 0) ? idx : (size + idx);
+
+            if (eff < 0 || eff >= size) {
+                out.add(null);
+                continue;
+            }
+
+            JsonNode elem = arr.get(eff);
+            if (elem == null || elem.isNull()) {
+                out.add(null);
+            } else {
+                // Convert JsonNode to regular Java object (List/Map/Number/Boolean/String)
+                out.add(MAPPER.convertValue(elem, Object.class));
+            }
+        }
+        return out;
+    }
+
+
+
+    /** Wrap any node as an ArrayNode: null → [], array → itself, other → [node]. */
+    private ArrayNode toArrayNode(JsonNode n) {
+        if (n == null || n.isNull()) return MAPPER.createArrayNode();
+        if (n.isArray()) return (ArrayNode) n;
+        ArrayNode arr = MAPPER.createArrayNode();
+        arr.add(n);
+        return arr;
+    }
+
 
     // ============================== GET (POJO retrieval) ==============================
 
-    /** Retrieve the original Java object stored at an exact (non-wildcard) path, if one was recorded. */
+    /**
+     * Retrieve the original Java object stored at an exact (non-wildcard) path, if one was recorded.
+     */
     public Object getPojo(Object key) {
         String ptr = resolvePointerForKey(key);
         if (ptr == null) return null;
@@ -211,7 +307,9 @@ public class NodeMap {
         return pj == null ? null : pj.getPojo();
     }
 
-    /** Type-safe retrieval of original Java object if recorded; returns null if absent or type mismatch. */
+    /**
+     * Type-safe retrieval of original Java object if recorded; returns null if absent or type mismatch.
+     */
     public <T> T getPojo(Object key, Class<T> type) {
         Object o = getPojo(key);
         if (o == null) return null;
@@ -234,7 +332,9 @@ public class NodeMap {
         return "$." + s;
     }
 
-    /** Parse top-level simple forms: "name", "name[idx]", "$.name", "$.name[idx]". Returns null for deep/wildcard. */
+    /**
+     * Parse top-level simple forms: "name", "name[idx]", "$.name", "$.name[idx]". Returns null for deep/wildcard.
+     */
     private static TopRef parseTopRef(String path) {
         String p = path.trim();
         if (p.startsWith("$")) p = p.substring(1);
@@ -274,17 +374,23 @@ public class NodeMap {
 
     // --------------------- Direct path parsing / concrete resolution ---------------------
 
-    /** A "direct" path has no wildcards and no recursive descent, e.g. "$.a.b[0].c". */
+    /**
+     * A "direct" path has no wildcards and no recursive descent, e.g. "$.a.b[0].c".
+     */
     private static boolean isDirectPath(String jp) {
         if (!jp.startsWith("$")) return false;
         // no wildcards, no deep-scan, no filters
         return !jp.contains("*") && !jp.contains("..") && !jp.contains("?(");
     }
 
-    /** Segment model: name plus optional [index]. Example: "arrayA[3]" or "prop". */
+    /**
+     * Segment model: name plus optional [index]. Example: "arrayA[3]" or "prop".
+     */
     private static final Pattern SEGMENT = Pattern.compile("(?<name>[^.\\[\\]]+)(?:\\[(?<idx>\\d+)])?");
 
-    /** Parse "$.a.b[2].c" into ordered segments. Returns null if not a direct path shape. */
+    /**
+     * Parse "$.a.b[2].c" into ordered segments. Returns null if not a direct path shape.
+     */
     private static List<Segment> parseDirectSegments(String jp) {
         if (!isDirectPath(jp)) return null;
         String s = jp.startsWith("$.") ? jp.substring(2) : jp.substring(1); // drop "$." or "$"
@@ -301,13 +407,21 @@ public class NodeMap {
         return out;
     }
 
-    private enum Status { OK, NO_TARGET, NOT_APPLICABLE }
+    private enum Status {OK, NO_TARGET, NOT_APPLICABLE}
+
     private static final class Resolution {
-        final Status status; final String path;
-        Resolution(Status s, String p) { this.status = s; this.path = p; }
+        final Status status;
+        final String path;
+
+        Resolution(Status s, String p) {
+            this.status = s;
+            this.path = p;
+        }
     }
 
-    /** Resolve a concrete JsonPath for GET by inserting [-1] for arrays when index omitted. */
+    /**
+     * Resolve a concrete JsonPath for GET by inserting [-1] for arrays when index omitted.
+     */
     private Resolution resolveConcreteJsonPath(String jp) {
         List<Segment> segs = parseDirectSegments(jp);
         if (segs == null || segs.isEmpty()) {
@@ -548,12 +662,16 @@ public class NodeMap {
         return "/" + escapePtr(top) + "/" + idx;
     }
 
-    /** JSON Pointer escaping per RFC6901: ~ → ~0, / → ~1 */
+    /**
+     * JSON Pointer escaping per RFC6901: ~ → ~0, / → ~1
+     */
     private static String escapePtr(String s) {
         return s.replace("~", "~0").replace("/", "~1");
     }
 
-    /** Decide if value is a "custom" object worth tracking. */
+    /**
+     * Decide if value is a "custom" object worth tracking.
+     */
     private static boolean isCustomPojo(Object v) {
         if (v == null) return false;
         if (v instanceof JsonNode) return false;
@@ -569,17 +687,24 @@ public class NodeMap {
     private static final class Segment {
         final String name;
         final Integer idx; // null → field; non-null → array index on this field
-        Segment(String name, Integer idx) { this.name = name; this.idx = idx; }
+
+        Segment(String name, Integer idx) {
+            this.name = name;
+            this.idx = idx;
+        }
     }
 
-    private record TopRef(String top, Integer idx) {}
+    private record TopRef(String top, Integer idx) {
+    }
 
     // Accessor to inspect the store
-    public ObjectNode multi() { return multi; }
+    public ObjectNode multi() {
+        return multi;
+    }
 
     // ============================== Demo / Edge tests ==============================
 
-    public static void main(String[] args) {
+    public static void main2(String[] args) {
         NodeMap map = new NodeMap();
 
         System.out.println("\n=== A) Implicit-last GET for nested array ===");
@@ -613,7 +738,8 @@ public class NodeMap {
         System.out.println("$.mm[-1].prop.color[*] -> " + map.get("$.mm[-1].prop.color[*]"));
 
         System.out.println("\n=== F) POJO sidecar test ===");
-        record MyClass(String name, int n) {}
+        record MyClass(String name, int n) {
+        }
         MyClass mc = new MyClass("alpha", 7);
         map.put("pojos.info", mc);
         System.out.println(map.multi().toPrettyString());
