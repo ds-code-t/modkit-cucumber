@@ -13,6 +13,15 @@ import static tools.ds.modkit.blackbox.Plans.*;
 import static tools.ds.modkit.util.Reflect.getProperty;
 import static utilities.StringUtilities.startsWithColonOrAtBracket;
 
+import tools.ds.modkit.model.MetaData;
+import tools.ds.modkit.trace.ObjDataRegistry; // your generic per-object data store
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+
+
 public final class BlackBoxBootstrap {
 
 //\u206A – INHIBIT SYMMETRIC SWAPPING (deprecated)
@@ -23,17 +32,46 @@ public final class BlackBoxBootstrap {
 //\u206F – NOMINAL DIGIT SHAPES (deprecated)
 
 
-
-    public static final String metaFlag = "\u206A";
+    public static final String metaFlag = "\u206A-TEXT";
 
     private static final Pattern LINE_SWAP_PATTERN = Pattern.compile(
             "^((?:\\s+(?::|@\\[)\\S*)+)(\\s+[A-Z*].*$)",
             Pattern.MULTILINE
     );
+
     public static void register() {
         System.out.println("@@register DSL");
 
 
+        Registry.register(
+                on("io.cucumber.gherkin.EncodingParser", "readWithEncodingFromSource", 1)
+                        .returns("java.lang.String")
+                        .after((args, ret, thr) -> {
+                            String original = (ret == null) ? "" : (String) ret;
+                            Matcher matcher = LINE_SWAP_PATTERN.matcher(original);
+                            String newStringReturn = matcher.replaceAll("$2"+metaFlag+"$1");
+                            System.out.println("@@newStringReturn : " + newStringReturn);
+                            return newStringReturn;
+                        })
+                        .build()
+        );
+
+
+        Registry.register(
+                on("io.cucumber.messages.types.PickleStep", "getText", 0)
+                        .returns("java.lang.String")
+                        .after((args, ret, thr) -> {
+                            if (!(ret instanceof String s)) return ret;
+                            int i = s.indexOf(metaFlag);
+                            if (i >= 0) {
+                                String out = s.substring(0, i);
+                                System.out.println("[modkit] PickleStep#getText keep-before-flag → " + out);
+                                return out;
+                            }
+                            return s;
+                        })
+                        .build()
+        );
 
 
 
@@ -90,15 +128,12 @@ public final class BlackBoxBootstrap {
 //        );
 
 
-
-
-
-
         CtorRegistryDSL.threadRegisterConstructed(
                 List.of(
                         "io.cucumber.core.runner.TestCase",
                         "io.cucumber.messages.types.Pickle",
-                        "io.cucumber.messages.types.Scenario"
+                        "io.cucumber.messages.types.Scenario",
+                        "io.cucumber.core.runner.Runner"
                 ),
                 "current-scenario" // optional extra key (same value stored under multiple keys)
         );
@@ -112,7 +147,6 @@ public final class BlackBoxBootstrap {
 //                ),
 //                "current-scenario" // optional extra key (same value stored under multiple keys)
 //        );
-
 
 
         // --- io.cucumber.messages.types.Scenario#getName() ---
@@ -170,41 +204,6 @@ public final class BlackBoxBootstrap {
 //                        })
 //                        .build()
 //        );
-
-
-
-//        Registry.register(
-//                onCtor("io.cucumber.gherkin.TokenScanner", 1)
-//                        .before(args -> {
-//                            if (args != null && args.length == 1 && args[0] instanceof String src) {
-//                                // debug
-//                                System.out.println("[modkit] TokenScanner<ctor> BEFORE len=" + src.length());
-//
-//                                Matcher matcher = LINE_SWAP_PATTERN.matcher(src);
-//                                args[0]= matcher.replaceAll("$2->$1");
-//
-//
-//                                System.out.println("@@args[0]: "  +  args[0]);
-//                            }
-//                        })
-//                        .build()
-//        );
-
-        // Replace the String return of EncodingParser.readWithEncodingFromSource(byte[])
-// by swapping two groups on each line and inserting "->"
-        Registry.register(
-                on("io.cucumber.gherkin.EncodingParser", "readWithEncodingFromSource", 1)
-                        .returns("java.lang.String")
-                        .after((args, ret, thr) -> {
-                            String original = (ret == null) ? "" : (String) ret;
-                            Matcher matcher = LINE_SWAP_PATTERN.matcher(original);
-                            String newStringReturn = matcher.replaceAll("$2"+metaFlag+"$1");
-                            System.out.println("@@newStringReturn : " + newStringReturn);
-                            return newStringReturn;
-                        })
-                        .build()
-        );
-
 
 
 // Mutate the `data` (2nd arg) of io.cucumber.messages.types.Source(String uri, String data, SourceMediaType mediaType)

@@ -2,8 +2,10 @@ package tools.ds.modkit.state;
 
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
+import io.cucumber.core.runner.Runner;
 import io.cucumber.plugin.event.TestCase;
 import tools.ds.modkit.executions.StepExecution;
+import tools.ds.modkit.mappings.ParsingMap;
 
 import java.util.Map;
 import java.util.Objects;
@@ -13,10 +15,17 @@ import static tools.ds.modkit.util.Reflect.nameOf;
 
 public final class ScenarioState {
 
+    public ParsingMap getTestMap() {
+        return testMap;
+    }
+
     // Canonical keys (unchanged)
+    private ParsingMap testMap = new ParsingMap();
+
     private static final String K_TEST_CASE = "io.cucumber.core.runner.TestCase";
     private static final String K_PICKLE    = "io.cucumber.messages.types.Pickle";
     private static final String K_SCENARIO  = "io.cucumber.messages.types.Scenario";
+    private static final String K_RUNNER  = "io.cucumber.core.runner.Runner";
 
     /** No initial value — you must call beginNew() or set(...). */
     private static final ThreadLocal<ScenarioState> STATE_TL = new ThreadLocal<>();
@@ -35,7 +44,7 @@ public final class ScenarioState {
         return bus;
     }
 
-    public TestCaseState getState() {
+    public TestCaseState getTestCaseState() {
         return state;
     }
 
@@ -133,6 +142,7 @@ public final class ScenarioState {
 
     public Object getPickle()    { return get(K_PICKLE); }
     public Object getScenario()  { return get(K_SCENARIO); }
+    public Runner getRunner()  { return (Runner) get(K_RUNNER); }
 
     public String getTestCaseName() { return nameOf(getTestCase()); }
     public String getPickleName()   { return nameOf(getPickle()); }

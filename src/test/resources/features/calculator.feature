@@ -3,9 +3,17 @@ Feature: Tiny calculator
   I want to verify my Cucumber customizations
   So that I can ship a reliable testing library
 
+  Scenario: Add twss
+    Given a is 2 and b is 5
+    Given a is 2 and b is 5
+    Given test DataTable sd
+      | Test | A<d>   | B   |
+      | 1    | a<HH>aa | bbb |
+
+
   Scenario: Add two numbers a
-    Given a is 2 and b is 3
-     :  @[sd]  When I add them s @[aaa] W #sdd :: @ww
+  : @[sd]  Given a is 2 and b is 3
+  :  @[sd]  When I add them s @[aaa] W #sdd :: @ww
     Then the result should be 5
 
 

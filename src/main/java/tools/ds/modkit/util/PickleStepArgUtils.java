@@ -41,7 +41,7 @@ public final class PickleStepArgUtils {
      * Transform a PickleStepArgument by converting it to text, applying {@code textTransformer},
      * and converting the result back into the same kind of PickleStepArgument.
      */
-    public static PickleStepArgument transform(
+    public static PickleStepArgument transformPickleArgument(
             PickleStepArgument arg,
             Function<String, String> textTransformer
     ) {
@@ -55,11 +55,11 @@ public final class PickleStepArgUtils {
     }
 
     /** Overload for UnaryOperator. */
-    public static PickleStepArgument transform(
+    public static PickleStepArgument transformPickleArgument(
             PickleStepArgument arg,
             UnaryOperator<String> textTransformer
     ) {
-        return transform(arg, (Function<String, String>) textTransformer);
+        return transformPickleArgument(arg, (Function<String, String>) textTransformer);
     }
 
     /** Convert a PickleStepArgument to plain text. */

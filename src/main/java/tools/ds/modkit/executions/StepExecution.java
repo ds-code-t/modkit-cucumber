@@ -5,7 +5,6 @@ import io.cucumber.core.eventbus.EventBus;
 import io.cucumber.plugin.event.PickleStepTestStep;
 import io.cucumber.plugin.event.TestCase;
 import tools.ds.modkit.extensions.StepExtension;
-import tools.ds.modkit.state.ScenarioState;
 import tools.ds.modkit.trace.ObjDataRegistry;
 
 import java.util.ArrayList;
@@ -33,7 +32,7 @@ public class StepExecution {
 
 
     public void runSteps(Object executionMode){
-        runSteps(getScenarioState().testCase, getScenarioState().bus,getScenarioState().getState(), executionMode);
+        runSteps(getScenarioState().testCase, getScenarioState().bus,getScenarioState().getTestCaseState(), executionMode);
     }
 
 

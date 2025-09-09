@@ -1,6 +1,7 @@
 package tools.ds.calc;
 
 
+import io.cucumber.datatable.DataTable;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
 import io.cucumber.java.en.Then;
@@ -19,6 +20,13 @@ public class StepDefs {
     }
     private int a, b, result;
 
+
+    @When("^test DataTable (.*)$")
+    public void dttest(String name, DataTable dataTable) {
+        System.out.println("@@DataTable: " + name);
+        System.out.println(dataTable);
+    }
+
 //    @io.cucumber.java.BeforeAll
 //   public static void before_or_after_all() throws InterruptedException {
 //        System.out.println("@@before_or_after_all");
@@ -32,7 +40,6 @@ public class StepDefs {
         System.out.println("@@a_is_and_b_is");
         this.a = a;
         this.b = b;
-
     }
 
     @When("^I add them (.*)$")
