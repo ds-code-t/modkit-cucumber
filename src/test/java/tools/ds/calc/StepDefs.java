@@ -46,6 +46,7 @@ public class StepDefs {
     public void i_add_them(String string) {
         System.out.println("@@i_add_them: " + string);
         result = a + b;
+        System.out.println("@@result: " + result);
 
 //        io.cucumber.messages.types.Scenario sc =  getScenarioState().getMessageScenario();
 //        System.out.println("@@--sc: " + sc);

@@ -12,14 +12,16 @@ public final class InstanceRegistry {
     /* ------------ helpers ------------ */
 
     private static ScenarioState cur() {
-        return ScenarioState.current(); // may be null if beginNew()/set() wasn't called
+        return ScenarioState.getScenarioState(); // may be null if beginNew()/set() wasn't called
     }
 
     /* ------------ Per-thread ------------ */
 
     /** Register value under each key in the current thread’s ScenarioState (no-op if none). */
     public static void register(Object value, Object... keys) {
+        System.out.println("@@Instanc## register: " + value);
         ScenarioState s = cur();
+        System.out.println("@s : " + s );
         if (s != null) s.register(value, keys);
     }
 

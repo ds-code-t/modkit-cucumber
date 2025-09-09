@@ -10,16 +10,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static tools.ds.modkit.blackbox.Plans.*;
-import static tools.ds.modkit.util.Reflect.getProperty;
-import static utilities.StringUtilities.startsWithColonOrAtBracket;
+import static tools.ds.modkit.state.ScenarioState.*;
 
-import tools.ds.modkit.model.MetaData;
-import tools.ds.modkit.trace.ObjDataRegistry; // your generic per-object data store
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
 
 
 public final class BlackBoxBootstrap {
@@ -42,6 +34,41 @@ public final class BlackBoxBootstrap {
     public static void register() {
         System.out.println("@@register DSL");
 
+
+        CtorRegistryDSL.threadRegisterConstructed(
+                List.of(
+                        K_TEST_CASE,
+                        K_PICKLE,
+                        K_SCENARIO,
+                        K_RUNNER
+                ),
+                "current-scenario" // optional extra key (same value stored under multiple keys)
+        );
+
+//// Or global:
+//        CtorRegistryDSL.globalRegisterConstructed(
+//                List.of(
+//                        K_TEST_CASE,
+//                        K_PICKLE,
+//                        K_SCENARIO,
+//                        K_RUNNER
+//                ),
+//                "current-scenario" // optional extra key (same value stored under multiple keys)
+//        );
+
+
+
+//         io.cucumber.gherkin.PickleCompiler#interpolate(String, List, List)
+// Bypass original and just return the first arg (name)
+        Registry.register(
+                on("io.cucumber.gherkin.PickleCompiler", "interpolate", 3)
+                        .returns("java.lang.String")
+                        .around(
+                                args -> true,                 // always skip original
+                                args -> (String) args[0]      // return `name`
+                        )
+                        .build()
+        );
 
         Registry.register(
                 on("io.cucumber.gherkin.EncodingParser", "readWithEncodingFromSource", 1)
@@ -75,110 +102,55 @@ public final class BlackBoxBootstrap {
 
 
 
-//        // In BlackBoxBootstrap.register()
-//// PickleStepTestStep#run — decide to bypass or run; and post-process return
+
+
+        // CHANGE Scneario NAME KEEP ME
+//        // --- io.cucumber.messages.types.Scenario#getName() ---
 //        Registry.register(
-//                on("io.cucumber.core.runner.PickleStepTestStep", "run", 4)
-//                        .returns("io.cucumber.core.runner.ExecutionMode")
-//
-//                        // BEFORE: inspect/mutate args if you want
-//                        .before(args -> {
-//                            System.out.println("[modkit] PkStep#run BEFORE args=" + java.util.Arrays.toString(args));
-//                            // args[0]=TestCase, args[1]=EventBus, args[2]=TestCaseState, args[3]=ExecutionMode
-//                            // (Optional) you can tweak args[3] (the incoming ExecutionMode) here if desired.
-//                        })
-////                io.cucumber.core.runner.ExecutionMode.SKIP;
-//                        // AROUND: if true => skip original and return value from supplier
-//                        .around(
-//                                args -> {
-//                                    // ----- your skip logic here (based only on inputs) -----
-//                                    Object testCase       = args[0];
-//                                    Object eventBus       = args[1];
-//                                    Object testCaseState  = args[2];
-//                                    Object incomingMode   = args[3];
-//
-//                                    // Example placeholder: skip when a sysprop is set
-////                                    boolean skip = Boolean.getBoolean("modkit.skip.this.step");
-//                                    boolean skip = true;
-//
-//                                    if (skip) {
-//                                        System.out.println("[modkit] PkStep#run BYPASS (return incoming mode)");
-//                                    }
-//                                    return skip; // true => bypass original
-//                                },
-//                                args -> {
-//                                    // Value to return when bypassing (must be an ExecutionMode)
-//                                    return args[3]; // e.g., keep the incoming mode
-//                                }
-//                        )
-//
-//                        // AFTER: see the original return and optionally change it
+//                on("io.cucumber.messages.types.Scenario", "getName", 0)
+//                        .returns("java.lang.String")
 //                        .after((args, ret, thr) -> {
-//                            System.out.println("[modkit] PkStep#run AFTER ret=" + ret + " thr=" + thr);
-//
-//                            // ----- your return-munging logic here -----
-//                            // Example: force return to the incoming mode if a flag is set
-//                            if (Boolean.getBoolean("modkit.force.return.incoming.mode")) {
-//                                return args[3];
-//                            }
-//                            return ret; // keep original
+//                            String in = (ret == null ? "<null>" : String.valueOf(ret));
+//                            System.err.println("[modkit] messages.types.Scenario#getName BEFORE: " + in
+//                                    + (thr != null ? " (threw: " + thr + ")" : ""));
+//                            String out = "ZZ9" + (ret == null ? "" : in);
+//                            System.err.println("[modkit] messages.types.Scenario#getName AFTER : " + out);
+//                            return out;
 //                        })
-//
 //                        .build()
 //        );
 
 
-        CtorRegistryDSL.threadRegisterConstructed(
-                List.of(
-                        "io.cucumber.core.runner.TestCase",
-                        "io.cucumber.messages.types.Pickle",
-                        "io.cucumber.messages.types.Scenario",
-                        "io.cucumber.core.runner.Runner"
-                ),
-                "current-scenario" // optional extra key (same value stored under multiple keys)
-        );
-
-//// Or global:
-//        CtorRegistryDSL.globalRegisterConstructed(
-//                List.of(
-//                        "io.cucumber.core.runner.TestCase",
-//                        "io.cucumber.messages.types.Pickle",
-//                        "io.cucumber.messages.types.Scenario"
-//                ),
-//                "current-scenario" // optional extra key (same value stored under multiple keys)
+//        // --- io.cucumber.core.gherkin.messages.GherkinMessagesPickle#getName() ---
+//
+//        Registry.register(
+//                on("io.cucumber.core.gherkin.messages.GherkinMessagesPickle", "getName", 0)
+//                        .returns("java.lang.String")
+//                        .after((args, ret, thr) -> {
+//                            String in = (ret == null ? "<null>" : String.valueOf(ret));
+//                            System.err.println("[modkit] GherkinMessagesPickle#getName BEFORE: " + in
+//                                    + (thr != null ? " (threw: " + thr + ")" : ""));
+//                            String out = (ret == null ? "" : in.replace("ZZ9", ""));
+//                            System.err.println("[modkit] GherkinMessagesPickle#getName AFTER : " + out);
+//                            return out;
+//                        })
+//                        .build()
 //        );
 
 
-        // --- io.cucumber.messages.types.Scenario#getName() ---
-        Registry.register(
-                on("io.cucumber.messages.types.Scenario", "getName", 0)
-                        .returns("java.lang.String")
-                        .after((args, ret, thr) -> {
-                            String in = (ret == null ? "<null>" : String.valueOf(ret));
-                            System.err.println("[modkit] messages.types.Scenario#getName BEFORE: " + in
-                                    + (thr != null ? " (threw: " + thr + ")" : ""));
-                            String out = "ZZ9" + (ret == null ? "" : in);
-                            System.err.println("[modkit] messages.types.Scenario#getName AFTER : " + out);
-                            return out;
-                        })
-                        .build()
-        );
 
 
-        // --- io.cucumber.core.gherkin.messages.GherkinMessagesPickle#getName() ---
-        Registry.register(
-                on("io.cucumber.core.gherkin.messages.GherkinMessagesPickle", "getName", 0)
-                        .returns("java.lang.String")
-                        .after((args, ret, thr) -> {
-                            String in = (ret == null ? "<null>" : String.valueOf(ret));
-                            System.err.println("[modkit] GherkinMessagesPickle#getName BEFORE: " + in
-                                    + (thr != null ? " (threw: " + thr + ")" : ""));
-                            String out = (ret == null ? "" : in.replace("ZZ9", ""));
-                            System.err.println("[modkit] GherkinMessagesPickle#getName AFTER : " + out);
-                            return out;
-                        })
-                        .build()
-        );
+
+
+
+
+
+        /// OLD
+
+
+
+
+
 
 // Modify the input *Token* before match_StepLine executes
 //        Registry.register(
@@ -255,6 +227,59 @@ public final class BlackBoxBootstrap {
 //                            System.out.println("[modkit] Line#getRawText ret=" + ret);
 //                            return ret;
 //                        })
+//                        .build()
+//        );
+
+
+//        // In BlackBoxBootstrap.register()
+//// PickleStepTestStep#run — decide to bypass or run; and post-process return
+//        Registry.register(
+//                on("io.cucumber.core.runner.PickleStepTestStep", "run", 4)
+//                        .returns("io.cucumber.core.runner.ExecutionMode")
+//
+//                        // BEFORE: inspect/mutate args if you want
+//                        .before(args -> {
+//                            System.out.println("[modkit] PkStep#run BEFORE args=" + java.util.Arrays.toString(args));
+//                            // args[0]=TestCase, args[1]=EventBus, args[2]=TestCaseState, args[3]=ExecutionMode
+//                            // (Optional) you can tweak args[3] (the incoming ExecutionMode) here if desired.
+//                        })
+////                io.cucumber.core.runner.ExecutionMode.SKIP;
+//                        // AROUND: if true => skip original and return value from supplier
+//                        .around(
+//                                args -> {
+//                                    // ----- your skip logic here (based only on inputs) -----
+//                                    Object testCase       = args[0];
+//                                    Object eventBus       = args[1];
+//                                    Object testCaseState  = args[2];
+//                                    Object incomingMode   = args[3];
+//
+//                                    // Example placeholder: skip when a sysprop is set
+////                                    boolean skip = Boolean.getBoolean("modkit.skip.this.step");
+//                                    boolean skip = true;
+//
+//                                    if (skip) {
+//                                        System.out.println("[modkit] PkStep#run BYPASS (return incoming mode)");
+//                                    }
+//                                    return skip; // true => bypass original
+//                                },
+//                                args -> {
+//                                    // Value to return when bypassing (must be an ExecutionMode)
+//                                    return args[3]; // e.g., keep the incoming mode
+//                                }
+//                        )
+//
+//                        // AFTER: see the original return and optionally change it
+//                        .after((args, ret, thr) -> {
+//                            System.out.println("[modkit] PkStep#run AFTER ret=" + ret + " thr=" + thr);
+//
+//                            // ----- your return-munging logic here -----
+//                            // Example: force return to the incoming mode if a flag is set
+//                            if (Boolean.getBoolean("modkit.force.return.incoming.mode")) {
+//                                return args[3];
+//                            }
+//                            return ret; // keep original
+//                        })
+//
 //                        .build()
 //        );
 

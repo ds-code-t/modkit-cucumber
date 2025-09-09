@@ -5,18 +5,21 @@ import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
 import io.cucumber.plugin.event.TestCase;
 import tools.ds.modkit.blackbox.Registry;
+import tools.ds.modkit.state.ScenarioState;
 import tools.ds.modkit.util.CallScope;
 
 import static tools.ds.modkit.blackbox.Plans.on;
-import static tools.ds.modkit.state.ScenarioState.beginNew;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.trace.ObjDataRegistry.*;
 import static tools.ds.modkit.util.ExecutionModes.RUN;
 
 public final class PickleStepRunPatch {
-    private PickleStepRunPatch() {}
+    private PickleStepRunPatch() {
+    }
 
-    /** Register the step-run interception. */
+    /**
+     * Register the step-run interception.
+     */
     public static void register() {
         Registry.register(
                 on("io.cucumber.core.runner.PickleStepTestStep", "run", 4)
@@ -29,27 +32,32 @@ public final class PickleStepRunPatch {
                         .around(
                                 args -> {
                                     System.out.println("@@around");
-
+                                    Object self = CallScope.currentSelf();
+                                    System.out.println("@@self1: " + self);
                                     Object testCase = args[0]; // io.cucumber.core.runner.TestCase (non-public)
                                     ObjFlags st = getFlag(testCase);
                                     boolean skip = true;
                                     if (st.equals(ObjFlags.NOT_SET)) {
-//
-//                    testCase, bus, state, nativeExecutionMode);
-                                        beginNew((TestCase) testCase, (EventBus) args[1], (TestCaseState) args[2]);
+//                                        beginNew((TestCase) testCase, (EventBus) args[1], (TestCaseState) args[2]);
+                                        ScenarioState.setScenarioStateValues((TestCase) testCase, (EventBus) args[1], (TestCaseState) args[2]);
                                         setFlag(testCase, ObjFlags.INITIALIZING);
                                     } else if (st.equals(ObjFlags.RUNNING)) {
                                         skip = false;
                                     }
-                                 //                                    return false;
-                                    return skip; // true => skip original
-                                },
-                                args -> {
-                                    Object self = CallScope.currentSelf();
-                                    if(containsFlags(self, ObjFlags.LAST))
-                                    {
+
+                                    if (containsFlags(self, ObjFlags.LAST)) {
                                         getScenarioState().getStepExecution().runSteps(RUN(args[2]));
                                     }
+                                    //                                    return false;
+                                    return skip; // true => skip original
+                                }
+                                ,
+                                args -> {
+//                                    Object self = CallScope.currentSelf();
+//                                    System.out.println("@@self2: " + self);
+//                                    if (containsFlags(self, ObjFlags.LAST)) {
+//                                        getScenarioState().getStepExecution().runSteps(RUN(args[2]));
+//                                    }
                                     return args[3];
                                 }
                         )

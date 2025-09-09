@@ -5,6 +5,7 @@ import io.cucumber.core.eventbus.EventBus;
 import io.cucumber.plugin.event.PickleStepTestStep;
 import io.cucumber.plugin.event.TestCase;
 import tools.ds.modkit.extensions.StepExtension;
+import tools.ds.modkit.mappings.ParsingMap;
 import tools.ds.modkit.trace.ObjDataRegistry;
 
 import java.util.ArrayList;
@@ -38,11 +39,13 @@ public class StepExecution {
 
     public void runSteps(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode){
         System.out.println("@@runSteps");
+        ParsingMap parsingMap = getScenarioState().getTestMap();
         setFlag(testCase, ObjDataRegistry.ObjFlags.RUNNING);
         for(StepExtension step: steps)
         {
             System.out.println("@@step: " + step.getStepText());
-            invokeAnyMethod(step, "run", testCase,  bus,  state, executionMode) ;
+            step.updateStep(parsingMap).run(testCase,  bus,  state, executionMode) ;
+//            invokeAnyMethod(step, "run", testCase,  bus,  state, executionMode) ;
         }
     }
 

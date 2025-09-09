@@ -7,10 +7,12 @@ import io.cucumber.plugin.event.TestCase;
 import tools.ds.modkit.executions.StepExecution;
 import tools.ds.modkit.mappings.ParsingMap;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static tools.ds.modkit.util.Reflect.getProperty;
 import static tools.ds.modkit.util.Reflect.nameOf;
 
 public final class ScenarioState {
@@ -22,23 +24,30 @@ public final class ScenarioState {
     // Canonical keys (unchanged)
     private ParsingMap testMap = new ParsingMap();
 
-    private static final String K_TEST_CASE = "io.cucumber.core.runner.TestCase";
-    private static final String K_PICKLE    = "io.cucumber.messages.types.Pickle";
-    private static final String K_SCENARIO  = "io.cucumber.messages.types.Scenario";
-    private static final String K_RUNNER  = "io.cucumber.core.runner.Runner";
+    public static final String K_TEST_CASE = "io.cucumber.core.runner.TestCase";
+//    private static final String K_PICKLE = "io.cucumber.messages.types.Pickle";
+public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.GherkinMessagesPickle";
+    public static final String K_SCENARIO = "io.cucumber.messages.types.Scenario";
+    public static final String K_RUNNER = "io.cucumber.core.runner.Runner";
 
-    /** No initial value — you must call beginNew() or set(...). */
-    private static final ThreadLocal<ScenarioState> STATE_TL = new ThreadLocal<>();
+    /**
+     * No initial value — you must call beginNew() or set(...).
+     */
+    private static final ThreadLocal<ScenarioState> STATE_TL = ThreadLocal.withInitial(ScenarioState::new);
 
-    /** Per-thread store lives inside the ScenarioState instance. */
+    /**
+     * Per-thread store lives inside the ScenarioState instance.
+     */
     private final Map<Object, Object> store = new ConcurrentHashMap<>();
 
 
-    public final TestCase testCase;
-    public final  EventBus bus;
-    public final TestCaseState state;
+    public  TestCase testCase;
+    public  io.cucumber.core.gherkin.Pickle scenarioPickle;
+    public  EventBus bus;
+    public  TestCaseState state;
 
-    public final StepExecution stepExecution;
+    public  StepExecution stepExecution;
+    public  Runner runner;
 
     public EventBus getBus() {
         return bus;
@@ -48,21 +57,34 @@ public final class ScenarioState {
         return state;
     }
 
-    private ScenarioState(TestCase testCase, EventBus bus, io.cucumber.core.backend.TestCaseState state) {
-        this.bus = bus;
-        this.state = state;
-        this.testCase = testCase;
-        this.stepExecution = new StepExecution(testCase);
-    }
-    public static ScenarioState getScenarioState() { return STATE_TL.get(); }
+//    private ScenarioState(TestCase testCase, EventBus bus, io.cucumber.core.backend.TestCaseState state) {
+//        this.bus = bus;
+//        this.state = state;
+//        this.testCase = testCase;
+//        this.scenarioPickle = (io.cucumber.core.gherkin.Pickle) getProperty(testCase, "pickle");
+//        this.stepExecution = new StepExecution(testCase);
+//    }
 
-    public StepExecution getStepExecution()
-    {
+    public static void setScenarioStateValues(TestCase testCase, EventBus bus, io.cucumber.core.backend.TestCaseState state) {
+        ScenarioState scenarioState = getScenarioState();
+        scenarioState.bus = bus;
+        scenarioState.state = state;
+        scenarioState.testCase = testCase;
+        scenarioState.scenarioPickle = (io.cucumber.core.gherkin.Pickle) getProperty(testCase, "pickle");
+        scenarioState.stepExecution = new StepExecution(testCase);
+        scenarioState.runner = scenarioState.getRunner();
+        scenarioState.clear();
+    }
+
+    public static ScenarioState getScenarioState() {
+        return STATE_TL.get();
+    }
+
+    public StepExecution getStepExecution() {
         return stepExecution;
     }
 
-    public TestCase getTestCase()
-    {
+    public TestCase getTestCase() {
         return testCase;
     }
 
@@ -70,16 +92,20 @@ public final class ScenarioState {
 
     /* ========================= lifecycle ========================= */
 
-    /** Install a fresh ScenarioState on this thread, cleaning up any previous one. */
-    public static ScenarioState beginNew(TestCase testCase, EventBus bus, io.cucumber.core.backend.TestCaseState state) {
-        ScenarioState prev = STATE_TL.get();
-        if (prev != null) prev.onClose();
-        ScenarioState next = new ScenarioState(testCase, bus,  state);
-        STATE_TL.set(next);
-        return next;
-    }
+//    /**
+//     * Install a fresh ScenarioState on this thread, cleaning up any previous one.
+//     */
+//    public static ScenarioState beginNew(TestCase testCase, EventBus bus, io.cucumber.core.backend.TestCaseState state) {
+//        ScenarioState prev = STATE_TL.get();
+//        if (prev != null) prev.onClose();
+//        ScenarioState next = new ScenarioState(testCase, bus, state);
+//        STATE_TL.set(next);
+//        return next;
+//    }
 
-    /** Replace with a provided instance (rare). Cleans up any previous one. */
+    /**
+     * Replace with a provided instance (rare). Cleans up any previous one.
+     */
     public static void set(ScenarioState replacement) {
         Objects.requireNonNull(replacement, "replacement");
         ScenarioState prev = STATE_TL.get();
@@ -87,32 +113,39 @@ public final class ScenarioState {
         STATE_TL.set(replacement);
     }
 
-    /** Get current state (may be null if beginNew/set wasn’t called). */
-    public static ScenarioState current() {
-        return STATE_TL.get();
-    }
 
-    /** End of scenario: clear and detach from thread to avoid leaks. */
+
+    /**
+     * End of scenario: clear and detach from thread to avoid leaks.
+     */
     public static void end() {
         ScenarioState prev = STATE_TL.get();
         if (prev != null) prev.onClose();
         STATE_TL.remove();
     }
 
-    /** Optional: clear contents but keep this instance bound to the thread. */
+    /**
+     * Optional: clear contents but keep this instance bound to the thread.
+     */
     public void clear() {
         store.clear();
     }
 
-    /** Internal cleanup hook. */
+    /**
+     * Internal cleanup hook.
+     */
     private void onClose() {
         store.clear();
     }
 
     /* ========================= registry ops (thread-local) ========================= */
 
-    /** Register the same value under each provided key for this thread. */
+    /**
+     * Register the same value under each provided key for this thread.
+     */
     public void register(Object value, Object... keys) {
+        System.out.println("@@State register-value: " + value );
+        System.out.println("@@State register-keys: " + Arrays.asList(keys) );
         if (value == null) return;
         if (keys == null || keys.length == 0) {
             store.put(value.getClass(), value);
@@ -139,14 +172,35 @@ public final class ScenarioState {
     }
 
     /* ========================= convenience getters ========================= */
+    public io.cucumber.core.gherkin.Pickle getScenarioPickle() {
+        return scenarioPickle;
+    }
 
-    public Object getPickle()    { return get(K_PICKLE); }
-    public Object getScenario()  { return get(K_SCENARIO); }
-    public Runner getRunner()  { return (Runner) get(K_RUNNER); }
+    public Object getScenario() {
+        return get(K_SCENARIO);
+    }
 
-    public String getTestCaseName() { return nameOf(getTestCase()); }
-    public String getPickleName()   { return nameOf(getPickle()); }
-    public String getScenarioName() { return nameOf(getScenario()); }
+    public Runner getRunner() {
+        System.out.println("@@##$#$ store : " + store);
+        if(runner == null)
+            return (Runner) get(K_RUNNER);
+        return runner;
+    }
+
+    public String getTestCaseName() {
+        return nameOf(getTestCase());
+    }
+
+    public String getPickleName() {
+        return nameOf(getScenarioPickle());
+    }
+
+    public String getPickleLanguage() {
+        return getScenarioPickle().getLanguage();
+    }
+    public String getScenarioName() {
+        return nameOf(getScenario());
+    }
 
 
 }

@@ -1,14 +1,138 @@
 package tools.ds.modkit.util;
 
-import java.lang.reflect.Array;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.List;
 
 /** Small helper for reflective calls against public or non-public classes. */
 public final class Reflect {
+
+
+    /* ===================== Constructors ===================== */
+
+    /** Create a new instance via the best-matching declared constructor. Returns null on failure. */
+    public static Object newInstance(Class<?> clazz, Object... args) {
+        if (clazz == null) return null;
+        final Object[] a = (args == null) ? new Object[0] : args;
+
+        // Collect all declared ctors (constructors are not inherited)
+        Constructor<?>[] ctors = clazz.getDeclaredConstructors();
+        if (ctors.length == 0) return null;
+
+        // Fast path: single ctor
+        if (ctors.length == 1) {
+            return tryConstruct(ctors[0], a);
+        }
+
+        // Filter by parameter count (respecting varargs)
+        List<Constructor<?>> byCount = new ArrayList<>();
+        for (Constructor<?> c : ctors) {
+            if (acceptsArgCount(c, a.length)) byCount.add(c);
+        }
+        if (byCount.isEmpty()) {
+            // No exact/vararg count match; fall back to first and hope for the best
+            return tryConstruct(ctors[0], a);
+        }
+        if (byCount.size() == 1) {
+            return tryConstruct(byCount.get(0), a);
+        }
+
+        // Choose best by assignability score
+        Constructor<?> best = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (Constructor<?> c : byCount) {
+            int score = applicabilityScore(c, a);
+            if (score > bestScore) { bestScore = score; best = c; }
+        }
+        if (best == null) best = byCount.get(0);
+        return tryConstruct(best, a);
+    }
+
+    /** Load a class (TCCL first, then this loader) and construct it. Returns null on failure. */
+    public static Object newInstance(String fqcn, Object... args) {
+        if (fqcn == null || fqcn.isEmpty()) return null;
+        ClassLoader tccl = Thread.currentThread().getContextClassLoader();
+        try {
+            return newInstance(Class.forName(fqcn, false, tccl), args);
+        } catch (ClassNotFoundException ignore) {
+            try {
+                return newInstance(Class.forName(fqcn, false, Reflect.class.getClassLoader()), args);
+            } catch (ClassNotFoundException e2) {
+                return null;
+            }
+        }
+    }
+
+    // ---- ctor internals -----------------------------------------------------
+
+    private static Object tryConstruct(Constructor<?> ctor, Object[] args) {
+        try {
+            if (!ctor.canAccess(null)) ctor.setAccessible(true);
+        } catch (Throwable ignore) { /* best effort; JPMS may block */ }
+        try {
+            Object[] callArgs = prepareArgsForVarargs(ctor, args);
+            return ctor.newInstance(callArgs);
+        } catch (Throwable ignore) {
+            return null;
+        }
+    }
+
+    private static boolean acceptsArgCount(Constructor<?> c, int argCount) {
+        int params = c.getParameterCount();
+        if (c.isVarArgs()) {
+            return argCount >= params - 1;
+        } else {
+            return argCount == params;
+        }
+    }
+
+    private static int applicabilityScore(Constructor<?> c, Object[] args) {
+        Class<?>[] pt = c.getParameterTypes();
+        boolean var = c.isVarArgs();
+        int score = 0;
+
+        if (!var && pt.length != args.length) return Integer.MIN_VALUE;
+
+        if (var) {
+            int fixed = pt.length - 1;
+            for (int i = 0; i < fixed; i++) score += matchScore(pt[i], args[i]);
+            Class<?> comp = pt[pt.length - 1].getComponentType();
+            for (int i = fixed; i < args.length; i++) score += matchScore(comp, args[i]);
+            score -= 1; // prefer non-varargs slightly when tied
+        } else {
+            for (int i = 0; i < pt.length; i++) score += matchScore(pt[i], args[i]);
+        }
+        return score;
+    }
+
+    /** Package varargs into an array if the ctor is varargs. */
+    private static Object[] prepareArgsForVarargs(Constructor<?> c, Object[] args) {
+        if (!c.isVarArgs()) return args;
+
+        Class<?>[] pt = c.getParameterTypes();
+        int fixed = pt.length - 1;
+        if (args.length == pt.length) {
+            Object last = args[args.length - 1];
+            if (last != null && last.getClass().isArray()
+                    && pt[pt.length - 1].isAssignableFrom(last.getClass())) {
+                return args; // already in vararg array form
+            }
+        }
+
+        Object[] packed = new Object[pt.length];
+        System.arraycopy(args, 0, packed, 0, Math.min(fixed, args.length));
+
+        Class<?> comp = pt[pt.length - 1].getComponentType();
+        int varCount = Math.max(0, args.length - fixed);
+        Object varArray = Array.newInstance(comp, varCount);
+        for (int i = 0; i < varCount; i++) {
+            Array.set(varArray, i, (fixed + i) < args.length ? args[fixed + i] : null);
+        }
+        packed[pt.length - 1] = varArray;
+        return packed;
+    }
+
+
 
     /**
      * Invoke a method (public or private), supporting both instance and static targets.

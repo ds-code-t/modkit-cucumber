@@ -24,18 +24,18 @@ import java.util.function.UnaryOperator;
 //UnaryOperator<String> external = transformer::myExternalModify;
 
 
-
 /**
  * Utilities to transform PickleStepArgument by text.
- *
+ * <p>
  * Supports:
- *  - PickleDocString: uses its content verbatim (mediaType preserved on rebuild)
- *  - PickleTable: serialized to a Gherkin-like pipe table with escaping:
- *      escape: "\" -> "\\", "|" -> "\|", "\n" -> "\n"
+ * - PickleDocString: uses its content verbatim (mediaType preserved on rebuild)
+ * - PickleTable: serialized to a Gherkin-like pipe table with escaping:
+ * escape: "\" -> "\\", "|" -> "\|", "\n" -> "\n"
  */
 public final class PickleStepArgUtils {
 
-    private PickleStepArgUtils() {}
+    private PickleStepArgUtils() {
+    }
 
     /**
      * Transform a PickleStepArgument by converting it to text, applying {@code textTransformer},
@@ -54,15 +54,20 @@ public final class PickleStepArgUtils {
         return fromTextLike(modifiedText, arg, kind);
     }
 
-    /** Overload for UnaryOperator. */
+    /**
+     * Overload for UnaryOperator.
+     */
     public static PickleStepArgument transformPickleArgument(
             PickleStepArgument arg,
             UnaryOperator<String> textTransformer
     ) {
+        if (arg == null) return null;
         return transformPickleArgument(arg, (Function<String, String>) textTransformer);
     }
 
-    /** Convert a PickleStepArgument to plain text. */
+    /**
+     * Convert a PickleStepArgument to plain text.
+     */
     public static String toText(PickleStepArgument arg) {
         Objects.requireNonNull(arg, "arg");
         Optional<PickleDocString> ds = arg.getDocString();
@@ -90,7 +95,7 @@ public final class PickleStepArgUtils {
     // Internals
     // ———————————————————
 
-    private enum Kind { DOC_STRING, TABLE, EMPTY }
+    private enum Kind {DOC_STRING, TABLE, EMPTY}
 
     private static Kind kindOf(PickleStepArgument arg) {
         if (arg.getDocString().isPresent()) return Kind.DOC_STRING;
@@ -154,7 +159,9 @@ public final class PickleStepArgUtils {
         return new PickleTable(rows);
     }
 
-    /** Parse a single pipe-delimited line honoring backslash escapes. */
+    /**
+     * Parse a single pipe-delimited line honoring backslash escapes.
+     */
     private static List<String> parseCells(String line) {
         List<String> cells = new ArrayList<>();
         StringBuilder cur = new StringBuilder();
@@ -165,10 +172,18 @@ public final class PickleStepArgUtils {
             if (escaping) {
                 // Support \|, \\, \n
                 switch (ch) {
-                    case '|': cur.append('|'); break;
-                    case '\\': cur.append('\\'); break;
-                    case 'n': cur.append('\n'); break;
-                    default:   cur.append(ch); break; // unknown escape -> literal char
+                    case '|':
+                        cur.append('|');
+                        break;
+                    case '\\':
+                        cur.append('\\');
+                        break;
+                    case 'n':
+                        cur.append('\n');
+                        break;
+                    default:
+                        cur.append(ch);
+                        break; // unknown escape -> literal char
                 }
                 escaping = false;
             } else if (ch == '\\') {
@@ -209,10 +224,18 @@ public final class PickleStepArgUtils {
             char ch = s.charAt(i);
             if (escaping) {
                 switch (ch) {
-                    case '|': out.append('|'); break;
-                    case '\\': out.append('\\'); break;
-                    case 'n': out.append('\n'); break;
-                    default: out.append(ch); break;
+                    case '|':
+                        out.append('|');
+                        break;
+                    case '\\':
+                        out.append('\\');
+                        break;
+                    case 'n':
+                        out.append('\n');
+                        break;
+                    default:
+                        out.append(ch);
+                        break;
                 }
                 escaping = false;
             } else if (ch == '\\') {
