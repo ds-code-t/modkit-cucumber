@@ -20,7 +20,7 @@ import static io.cucumber.junit.platform.engine.Constants.FILTER_TAGS_PROPERTY_N
 //        value = "pretty, summary, tools.ds.modkit.BootstrapPlugin"
         value = "pretty, summary, tools.ds.modkit.BootstrapPlugin"
 )
-@ConfigurationParameter(key = FILTER_TAGS_PROPERTY_NAME, value = "not @wip")
+//@ConfigurationParameter(key = FILTER_TAGS_PROPERTY_NAME, value = "not @wip")
 public class RunCukesTest {
     // no code needed; annotations drive discovery & execution
 }

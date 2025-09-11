@@ -2,18 +2,21 @@ package tools.ds.modkit.state;
 
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
+import io.cucumber.core.options.RuntimeOptions;
 import io.cucumber.core.runner.Runner;
+import io.cucumber.messages.types.Location;
 import io.cucumber.plugin.event.TestCase;
+import io.cucumber.tagexpressions.Expression;
 import tools.ds.modkit.executions.StepExecution;
 import tools.ds.modkit.mappings.ParsingMap;
+import tools.ds.modkit.util.CucumberQueryUtil;
+import tools.ds.modkit.util.CucumberTagUtils;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static tools.ds.modkit.util.Reflect.getProperty;
-import static tools.ds.modkit.util.Reflect.nameOf;
+import static tools.ds.modkit.state.GlobalState.K_RUNTIME;
+import static tools.ds.modkit.util.Reflect.*;
 
 public final class ScenarioState {
 
@@ -25,10 +28,11 @@ public final class ScenarioState {
     private ParsingMap testMap = new ParsingMap();
 
     public static final String K_TEST_CASE = "io.cucumber.core.runner.TestCase";
-//    private static final String K_PICKLE = "io.cucumber.messages.types.Pickle";
-public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.GherkinMessagesPickle";
+    //    private static final String K_PICKLE = "io.cucumber.messages.types.Pickle";
+    public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.GherkinMessagesPickle";
     public static final String K_SCENARIO = "io.cucumber.messages.types.Scenario";
     public static final String K_RUNNER = "io.cucumber.core.runner.Runner";
+
 
     /**
      * No initial value — you must call beginNew() or set(...).
@@ -41,13 +45,14 @@ public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.Gherkin
     private final Map<Object, Object> store = new ConcurrentHashMap<>();
 
 
-    public  TestCase testCase;
-    public  io.cucumber.core.gherkin.Pickle scenarioPickle;
-    public  EventBus bus;
-    public  TestCaseState state;
+    public TestCase testCase;
+    public io.cucumber.core.gherkin.Pickle scenarioPickle;
+    public CucumberQueryUtil.GherkinView gherkinView;
+    public EventBus bus;
+    public TestCaseState state;
 
-    public  StepExecution stepExecution;
-    public  Runner runner;
+    public StepExecution stepExecution;
+    public Runner runner;
 
     public EventBus getBus() {
         return bus;
@@ -71,6 +76,7 @@ public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.Gherkin
         scenarioState.state = state;
         scenarioState.testCase = testCase;
         scenarioState.scenarioPickle = (io.cucumber.core.gherkin.Pickle) getProperty(testCase, "pickle");
+        scenarioState.gherkinView = CucumberQueryUtil.describe(scenarioState.scenarioPickle);
         scenarioState.stepExecution = new StepExecution(testCase);
         scenarioState.runner = scenarioState.getRunner();
         scenarioState.clear();
@@ -114,7 +120,6 @@ public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.Gherkin
     }
 
 
-
     /**
      * End of scenario: clear and detach from thread to avoid leaks.
      */
@@ -144,8 +149,8 @@ public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.Gherkin
      * Register the same value under each provided key for this thread.
      */
     public void register(Object value, Object... keys) {
-        System.out.println("@@State register-value: " + value );
-        System.out.println("@@State register-keys: " + Arrays.asList(keys) );
+        System.out.println("@@State register-value: " + value);
+        System.out.println("@@State register-keys: " + Arrays.asList(keys));
         if (value == null) return;
         if (keys == null || keys.length == 0) {
             store.put(value.getClass(), value);
@@ -182,10 +187,16 @@ public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.Gherkin
 
     public Runner getRunner() {
         System.out.println("@@##$#$ store : " + store);
-        if(runner == null)
+        if (runner == null)
             return (Runner) get(K_RUNNER);
         return runner;
     }
+
+
+//    public io.cucumber.core.runtime.Runtime getRuntime() {
+//        return (io.cucumber.core.runtime.Runtime) get(K_RUNTIME);
+//    }
+
 
     public String getTestCaseName() {
         return nameOf(getTestCase());
@@ -195,11 +206,32 @@ public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.Gherkin
         return nameOf(getScenarioPickle());
     }
 
+
     public String getPickleLanguage() {
         return getScenarioPickle().getLanguage();
     }
+
     public String getScenarioName() {
         return nameOf(getScenario());
+    }
+
+    public io.cucumber.core.runner.Options getRuntimeOptions() {
+        return (io.cucumber.core.runner.Options) getProperty(getRunner(), "runnerOptions");
+    }
+
+    public List<String> getTags(){
+        return CucumberTagUtils.extractTags(getRuntimeOptions());
+    }
+
+//    public Object getTagExpressions() {
+//        List<Expression> tagExpressions = (List<Expression>) getProperty(getRuntimeOptions(), "tagExpressions");
+//        if(tagExpressions == null)
+//            return ((Optional<?>) invokeAnyMethod(getRuntimeOptions(),"tagFilter")).orElse(null);
+//        return tagExpressions;
+//    }
+
+    public CucumberQueryUtil.GherkinView getCucumberQuery() {
+        return CucumberQueryUtil.describe(getScenarioPickle());
     }
 
 

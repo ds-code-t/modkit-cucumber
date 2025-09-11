@@ -52,6 +52,7 @@ tasks.test {
     // Your test defaults, optional:
     jvmArgs '-Djdk.attach.allowAttachSelf=true'
     systemProperty 'modkit.debug', System.getProperty('modkit.debug', 'false')
+    systemProperty "cucumber.filter.tags", System.getProperty("cucumber.filter.tags")
 }
 
 tasks.jar {

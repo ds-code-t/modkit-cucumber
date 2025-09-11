@@ -11,6 +11,7 @@ import tools.ds.modkit.trace.ObjDataRegistry;
 import java.util.ArrayList;
 import java.util.List;
 
+import static tools.ds.modkit.state.GlobalState.getRuntime;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.trace.ObjDataRegistry.setFlag;
 import static tools.ds.modkit.util.ExecutionModes.RUN;
@@ -39,6 +40,15 @@ public class StepExecution {
 
     public void runSteps(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode){
         System.out.println("@@runSteps");
+
+        System.out.println("@@gherkinView: " +getScenarioState().gherkinView);
+        System.out.println("\n@@getRuntimeOptions: " +     getScenarioState().getRuntimeOptions());
+//        System.out.println("\n@@getTagExpressions(): " +     getScenarioState().getTagExpressions());
+        System.out.println("\n@@getTags(): " +     getScenarioState().getTags());
+//        System.out.println("\n@@getRuntime(): " +     getScenarioState().getRuntime());
+        System.out.println("\n@@getRuntime(): " +     getRuntime());
+
+
         ParsingMap parsingMap = getScenarioState().getTestMap();
         setFlag(testCase, ObjDataRegistry.ObjFlags.RUNNING);
         for(StepExtension step: steps)

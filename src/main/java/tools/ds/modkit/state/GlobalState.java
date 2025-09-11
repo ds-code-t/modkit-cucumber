@@ -1,8 +1,12 @@
 package tools.ds.modkit.state;
 
+import io.cucumber.core.options.RuntimeOptions;
+
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
 
 import static tools.ds.modkit.util.Reflect.findZeroArgMethod;
 import static tools.ds.modkit.util.Reflect.nameOf;
@@ -10,6 +14,8 @@ import static tools.ds.modkit.util.Reflect.nameOf;
 public final class GlobalState {
 
     private static final GlobalState INSTANCE = new GlobalState();
+    public static final String K_OPTIONS = "io.cucumber.core.options.RuntimeOptions";
+    public static final String K_RUNTIME = "io.cucumber.core.runtime.Runtime";
 
     /** JVM-wide store */
     private final Map<Object, Object> store = new ConcurrentHashMap<>();
@@ -21,10 +27,18 @@ public final class GlobalState {
         return INSTANCE;
     }
 
+    public static io.cucumber.core.runtime.Runtime getRuntime() {
+        return (io.cucumber.core.runtime.Runtime) INSTANCE.byKey(K_RUNTIME);
+    }
+
+
+
     /* ---------------- core registry ops (used by InstanceRegistry) ---------------- */
 
     /** Register the same value under each provided key in the global store. */
     public void register(Object value, Object... keys) {
+        System.out.println("@@Global-register: " + value);
+        System.out.println("@@keys: " + Arrays.asList(keys));
         if (value == null) return;
         if (keys == null || keys.length == 0) {
             store.put(value.getClass(), value);

@@ -10,6 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static tools.ds.modkit.blackbox.Plans.*;
+import static tools.ds.modkit.state.GlobalState.K_RUNTIME;
 import static tools.ds.modkit.state.ScenarioState.*;
 
 
@@ -41,20 +42,16 @@ public final class BlackBoxBootstrap {
                         K_PICKLE,
                         K_SCENARIO,
                         K_RUNNER
-                ),
-                "current-scenario" // optional extra key (same value stored under multiple keys)
+                )
+//                ,                "current-scenario" // optional extra key (same value stored under multiple keys)
         );
 
-//// Or global:
-//        CtorRegistryDSL.globalRegisterConstructed(
-//                List.of(
-//                        K_TEST_CASE,
-//                        K_PICKLE,
-//                        K_SCENARIO,
-//                        K_RUNNER
-//                ),
-//                "current-scenario" // optional extra key (same value stored under multiple keys)
-//        );
+// Or global:
+        CtorRegistryDSL.globalRegisterConstructed(
+                List.of(
+                        K_RUNTIME
+                )
+        );
 
 
 

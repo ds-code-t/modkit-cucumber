@@ -12,9 +12,12 @@ import tools.ds.modkit.util.PickleStepArgUtils;
 import tools.ds.modkit.util.Reflect;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.metaFlag;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
@@ -30,39 +33,35 @@ public class StepExtension implements PickleStepTestStep {
     public final io.cucumber.core.gherkin.Step gherikinMessageStep;
     public final String rootText;
     public final String metaData;
+    public final int nestingLevel;
+    public final List<String> stepTags = new ArrayList<>();
+    public final List<StepExtension> childSteps = new ArrayList<>();
+    public StepExtension parentStep;
+    public StepExtension previousSibling;
+    public StepExtension nextSibling;
 //    public final ParsingMap parsingMap;
 
+    private static  Pattern pattern = Pattern.compile("@\\[([^\\[\\]]+)\\]");
     public StepExtension(PickleStepTestStep step) {
         this.delegate = step;
         this.gherikinMessageStep = (io.cucumber.core.gherkin.Step) getProperty(delegate, "step");
         this.rootStep = (PickleStep) getProperty(gherikinMessageStep, "pickleStep");
-        System.out.println("@@delegate - getStepText: "  + delegate.getStepText());
-        System.out.println("@@rootStep - delegate class: " +   invokeAnyMethod(delegate, "getClass"));
-        System.out.println("@@rootStep - gherikinMessageStep class: " +   invokeAnyMethod(gherikinMessageStep, "getClass"));
-        System.out.println("@@rootStep - rootStep class: " +   invokeAnyMethod(rootStep, "getClass"));
-        System.out.println("@@rootStep: " +   rootStep);
-        System.out.println("@@rootStep - text: " + getProperty(rootStep, "text"));
         String[] strings = ((String) getProperty(rootStep, "text")).split(metaFlag);
         rootText = strings[0].trim();
         metaData = strings.length == 1 ? "" : strings[1].trim();
-
+        Matcher matcher =  pattern.matcher(metaData);
+        while (matcher.find()) {
+            stepTags.add(matcher.group().substring(1).replaceAll("\\[\\]",""));
+        }
+        nestingLevel = (int)  matcher.replaceAll("").chars().filter(ch -> ch == ':').count();
     }
 
     public StepExtension updateStep(ParsingMap parsingMap) {
         PickleStepArgument argument = rootStep.getArgument().orElse(null);
         UnaryOperator<String> external = parsingMap::resolveWholeText;
-        System.out.println("@@argument: " + argument);
         PickleStepArgument newPickleStepArgument = PickleStepArgUtils.transformPickleArgument(argument, external);
         PickleStep pickleStep = new PickleStep(newPickleStepArgument, rootStep.getAstNodeIds(), rootStep.getId(), rootStep.getType().orElse(null), parsingMap.resolveWholeText(rootStep.getText()));
-        System.out.println("@@: getScenarioState().getPickle(): " + getScenarioState().getScenarioPickle());
-        System.out.println("@@: getScenarioState().getTEstCase(): " + getScenarioState().getTestCaseName());
-        System.out.println("@@: getScenarioState().getTEstCase(): " + getScenarioState().getTestCase());
 //        io.cucumber.core.gherkin.messages.GherkinMessagesStep
-        System.out.println("\n--------\n---@@pickleStep: " + pickleStep.getClass());
-        System.out.println("@@GherkinDialects.getDialect(getScenarioState().getPickleLanguage()): " + GherkinDialects.getDialect(getScenarioState().getPickleLanguage()));
-        System.out.println("@@ gherikinMessageStep.getPreviousGivenWhenThenKeyword(): " +  gherikinMessageStep.getPreviousGivenWhenThenKeyword());
-        System.out.println("@@ gherikinMessageStep.getLocation(): " +  gherikinMessageStep.getLocation());
-        System.out.println("@@gherikinMessageStep.getKeyword(): " + gherikinMessageStep.getKeyword());
         io.cucumber.core.gherkin.Step newGherikinMessageStep = (io.cucumber.core.gherkin.Step) Reflect.newInstance(
                 "io.cucumber.core.gherkin.messages.GherkinMessagesStep",
                 pickleStep,
@@ -72,9 +71,7 @@ public class StepExtension implements PickleStepTestStep {
                 gherikinMessageStep.getKeyword()
         );
 
-        System.out.println("@@newGherikinMessageStepgetClass: " + newGherikinMessageStep.getClass());
         Object pickleStepDefinitionMatch  = getUpdatedDefinition(getScenarioState().getRunner(),getScenarioState().getScenarioPickle() ,newGherikinMessageStep);
-        System.out.println("@@pickleStepDefinitionMatch: " + pickleStepDefinitionMatch);
         return new StepExtension((PickleStepTestStep) Reflect.newInstance(
                 "io.cucumber.core.runner.PickleStepTestStep",
                 getId(),               // java.util.UUID
