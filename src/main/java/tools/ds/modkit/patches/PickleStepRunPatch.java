@@ -36,20 +36,19 @@ public final class PickleStepRunPatch {
                                     System.out.println("@@self1: " + self);
                                     Object testCase = args[0]; // io.cucumber.core.runner.TestCase (non-public)
                                     ObjFlags st = getFlag(testCase);
-                                    boolean skip = true;
                                     if (st.equals(ObjFlags.NOT_SET)) {
 //                                        beginNew((TestCase) testCase, (EventBus) args[1], (TestCaseState) args[2]);
                                         ScenarioState.setScenarioStateValues((TestCase) testCase, (EventBus) args[1], (TestCaseState) args[2]);
                                         setFlag(testCase, ObjFlags.INITIALIZING);
                                     } else if (st.equals(ObjFlags.RUNNING)) {
-                                        skip = false;
+                                       return false;
                                     }
 
                                     if (containsFlags(self, ObjFlags.LAST)) {
                                         getScenarioState().getStepExecution().runSteps(RUN(args[2]));
                                     }
                                     //                                    return false;
-                                    return skip; // true => skip original
+                                    return true; // true => skip original
                                 }
                                 ,
                                 args -> {

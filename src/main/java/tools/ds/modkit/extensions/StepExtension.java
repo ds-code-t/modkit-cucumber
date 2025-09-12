@@ -39,9 +39,13 @@ public class StepExtension implements PickleStepTestStep {
     public StepExtension parentStep;
     public StepExtension previousSibling;
     public StepExtension nextSibling;
+
+    public Result result;
 //    public final ParsingMap parsingMap;
 
-    private static  Pattern pattern = Pattern.compile("@\\[([^\\[\\]]+)\\]");
+    public boolean shouldRun = true;
+
+    private static final Pattern pattern = Pattern.compile("@\\[([^\\[\\]]+)\\]");
     public StepExtension(PickleStepTestStep step) {
         this.delegate = step;
         this.gherikinMessageStep = (io.cucumber.core.gherkin.Step) getProperty(delegate, "step");
@@ -72,7 +76,7 @@ public class StepExtension implements PickleStepTestStep {
         );
 
         Object pickleStepDefinitionMatch  = getUpdatedDefinition(getScenarioState().getRunner(),getScenarioState().getScenarioPickle() ,newGherikinMessageStep);
-        return new StepExtension((PickleStepTestStep) Reflect.newInstance(
+        StepExtension newStep =  new StepExtension((PickleStepTestStep) Reflect.newInstance(
                 "io.cucumber.core.runner.PickleStepTestStep",
                 getId(),               // java.util.UUID
                 getUri(),                // java.net.URI
@@ -80,6 +84,12 @@ public class StepExtension implements PickleStepTestStep {
                 pickleStepDefinitionMatch            // io.cucumber.core.runner.PickleStepDefinitionMatch (package-private instance is fine)
         ));
 
+        newStep.childSteps.addAll(childSteps);
+        newStep.parentStep  = parentStep;
+        newStep.previousSibling  = previousSibling;
+        newStep.nextSibling  = nextSibling;
+
+        return newStep;
     }
 
     public static Object getUpdatedDefinition(Runner runner, io.cucumber.core.gherkin.Pickle scenarioPickle, io.cucumber.core.gherkin.Step step) {
@@ -91,8 +101,21 @@ public class StepExtension implements PickleStepTestStep {
 
 
     public Object run(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
-        return invokeAnyMethod(delegate, "run", testCase, bus, state, executionMode);
+        Object returnObj = invokeAnyMethod(delegate, "run", testCase, bus, state, executionMode);
+        result = ((List<Result>) getProperty(state, "stepResults")).getLast();
+        System.out.println("@@PARENT:: steps: " + getStepText());
+        for(StepExtension step: childSteps)
+        {
+            System.out.println("@@child steps: " + step.getStepText());
+            step.run( testCase, bus, state, executionMode);
+        }
+        return returnObj;
     }
+
+
+//    public boolean shouldRun(){
+//
+//    }
 
 
     @Override
@@ -139,4 +162,8 @@ public class StepExtension implements PickleStepTestStep {
     public UUID getId() {
         return delegate.getId();
     }
+
+
+
+
 }

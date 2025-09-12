@@ -3,6 +3,11 @@ Feature: Tiny calculator2
   I want to verify my Cucumber customizations
   So that I can ship a reliable testing library
 
+  Scenario: sum  <A> , <B>
+    Given a is 3 and b is 6
+    Then the result should be 9
+    Given a is 1 and b is 6
+    Given a is 2 and b is 6
 
   Scenario Outline: line <A> , <B>
     Given a is <A> and b is <B>
@@ -12,7 +17,7 @@ Feature: Tiny calculator2
     Examples:
       | A  | B  | C |
       | 11 | 22 | 33  |
-      | 33 | 44 | 77  |
+      | 33 | 44 | 78  |
 
   Scenario: scenarioA1
     Given a is 2 and b is 5

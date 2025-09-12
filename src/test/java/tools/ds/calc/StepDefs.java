@@ -5,9 +5,7 @@ import io.cucumber.datatable.DataTable;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
 import io.cucumber.java.en.Then;
-import io.cucumber.messages.types.Pickle;
-import io.cucumber.messages.types.PickleStep;
-import tools.ds.modkit.EnsureInstalled;
+import tools.ds.modkit.status.SoftRuntimeException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
@@ -71,8 +69,15 @@ public class StepDefs {
 
     }
     @Then("the result should be {int}")
-    public void the_result_should_be(int expected) {
+    public void the_result_should_be(int expected)  {
         System.out.println("@@the_result_should_be");
-        assertEquals(expected, result, "Sum mismatch");
+        try {
+            assertEquals(expected, result, "Sum mismatch");
+        }
+        catch (Throwable e)
+        {
+            System.out.println("@@e " + e);
+            throw new SoftRuntimeException(e);
+        }
     }
 }

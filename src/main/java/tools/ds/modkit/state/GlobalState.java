@@ -14,7 +14,7 @@ import static tools.ds.modkit.util.Reflect.nameOf;
 public final class GlobalState {
 
     private static final GlobalState INSTANCE = new GlobalState();
-    public static final String K_OPTIONS = "io.cucumber.core.options.RuntimeOptions";
+//    public static final String K_OPTIONS = "io.cucumber.core.options.RuntimeOptions";
     public static final String K_RUNTIME = "io.cucumber.core.runtime.Runtime";
 
     /** JVM-wide store */

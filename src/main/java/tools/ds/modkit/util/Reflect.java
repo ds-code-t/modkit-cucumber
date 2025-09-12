@@ -422,5 +422,87 @@ public final class Reflect {
         }
     }
 
+
+
+    // --- setters ---------------------------------------------------------------
+
+    /** Single-hop: set a direct field or 1-arg setter on the given target. */
+    public static boolean setDirectProperty(Object target, String name, Object value) {
+        if (target == null || name == null || name.isEmpty()) return false;
+
+        // 1) Direct field
+        Field f = findField(target.getClass(), name);
+        if (f != null) {
+            try {
+                if (!f.canAccess(target)) f.setAccessible(true);
+                f.set(target, value);
+                return true;
+            } catch (Throwable ignore) { /* fall through */ }
+        }
+
+        // 2) One-arg method with exact name
+        Method m = findOneArgMethod(target.getClass(), name, value);
+        if (m != null) {
+            try {
+                if (!m.canAccess(target)) m.setAccessible(true);
+                m.invoke(target, value);
+                return true;
+            } catch (Throwable ignore) { /* fall through */ }
+        }
+
+        // 3) Bean-style setter: setXxx(...)
+        String cap = Character.toUpperCase(name.charAt(0)) + name.substring(1);
+        Method setter = findOneArgMethod(target.getClass(), "set" + cap, value);
+        if (setter != null) {
+            try {
+                if (!setter.canAccess(target)) setter.setAccessible(true);
+                setter.invoke(target, value);
+                return true;
+            } catch (Throwable ignore) { /* fall through */ }
+        }
+
+        return false;
+    }
+
+    /** Multi-hop: supports dot paths like "a.b.c" (sets 'c' on the resolved 'b'). */
+    public static boolean setProperty(Object target, String path, Object value) {
+        System.out.println("@@setProperty");
+        System.out.println("@@target: " + target);
+        System.out.println("@@path: " + path);
+        System.out.println("@@value: " + value);
+        if (target == null || path == null || path.isEmpty()) return false;
+
+        Object current = target;
+        String[] parts = path.split("\\.");
+        for (int i = 0; i < parts.length - 1; i++) {
+            String seg = parts[i].trim();
+            if (seg.isEmpty()) continue;
+            current = getDirectProperty(current, seg);
+            if (current == null) return false; // can't descend
+        }
+        String leaf = parts[parts.length - 1].trim();
+        if (leaf.isEmpty()) return false;
+        return setDirectProperty(current, leaf, value);
+    }
+
+// --- tiny helper for setters ----------------------------------------------
+
+    private static Method findOneArgMethod(Class<?> type, String name, Object value) {
+        for (Class<?> c = type; c != null; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (!m.getName().equals(name) || m.getParameterCount() != 1) continue;
+                Class<?> p = m.getParameterTypes()[0];
+                if (value == null) {
+                    if (!p.isPrimitive()) return m; // null ok for non-primitive
+                } else {
+                    Class<?> want = p.isPrimitive() ? wrapperType(p) : p;
+                    if (want.isAssignableFrom(value.getClass())) return m;
+                }
+            }
+        }
+        return null;
+    }
+
+
     private Reflect() {}
 }
