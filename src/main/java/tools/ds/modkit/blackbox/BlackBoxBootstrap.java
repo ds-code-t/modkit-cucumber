@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 import static tools.ds.modkit.blackbox.Plans.*;
 import static tools.ds.modkit.state.GlobalState.K_RUNTIME;
 import static tools.ds.modkit.state.ScenarioState.*;
-
+import static tools.ds.modkit.util.KeyFunctions.getUniqueKey;
 
 
 public final class BlackBoxBootstrap {
@@ -30,8 +30,11 @@ public final class BlackBoxBootstrap {
     public static final String metaFlag = "\u206A-TEXT";
 
     private static final Pattern LINE_SWAP_PATTERN = Pattern.compile(
-            "^((?:\\s+(?::|@\\[)\\S*)+)(\\s+[A-Z*].*$)",
+            "^((?:(?:\\s*:)|(?:\\s*@\\[[^\\[\\]]*\\]))+)(\\s*[A-Z*].*$)",
             Pattern.MULTILINE
+
+//            "^((?:\\s+(?::|@\\[)\\S*)+)(\\s+[A-Z*].*$)",
+//            Pattern.MULTILINE
     );
 
     public static void register() {
@@ -56,10 +59,6 @@ public final class BlackBoxBootstrap {
         );
 
 
-
-
-
-
 //         io.cucumber.gherkin.PickleCompiler#interpolate(String, List, List)
 // Bypass original and just return the first arg (name)
         Registry.register(
@@ -78,7 +77,7 @@ public final class BlackBoxBootstrap {
                         .after((args, ret, thr) -> {
                             String original = (ret == null) ? "" : (String) ret;
                             Matcher matcher = LINE_SWAP_PATTERN.matcher(original);
-                            String newStringReturn = matcher.replaceAll("$2"+metaFlag+"$1");
+                            String newStringReturn = matcher.replaceAll("$2" + metaFlag + "$1");
                             System.out.println("@@newStringReturn : " + newStringReturn);
                             return newStringReturn;
                         })
@@ -102,8 +101,21 @@ public final class BlackBoxBootstrap {
                         .build()
         );
 
+        // Intercept: TestStepStarted#getTestStep()
+        Registry.register(
+                on("io.cucumber.plugin.event.TestStepStarted", "getTestStep", 0)
+                        .returns("io.cucumber.plugin.event.TestStep")
+                        .after((args, ret, thr) -> getScenarioState().get(getUniqueKey(((io.cucumber.plugin.event.PickleStepTestStep) ret))))
+                        .build()
+        );
 
-
+// Intercept: TestStepFinished#getTestStep()
+        Registry.register(
+                on("io.cucumber.plugin.event.TestStepFinished", "getTestStep", 0)
+                        .returns("io.cucumber.plugin.event.TestStep")
+                        .after((args, ret, thr) -> getScenarioState().get(getUniqueKey(((io.cucumber.plugin.event.PickleStepTestStep) ret))))
+                        .build()
+        );
 
 
         // CHANGE Scneario NAME KEEP ME
@@ -140,18 +152,7 @@ public final class BlackBoxBootstrap {
 //        );
 
 
-
-
-
-
-
-
-
         /// OLD
-
-
-
-
 
 
 // Modify the input *Token* before match_StepLine executes

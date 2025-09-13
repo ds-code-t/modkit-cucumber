@@ -80,4 +80,18 @@ public class StepDefs {
             throw new SoftRuntimeException(e);
         }
     }
+
+
+    @Then("Hard Error")
+    public void hardError()  {
+        System.out.println("@@hardError");
+        throw new RuntimeException("hardError");
+    }
+
+    @Then("Soft Error")
+    public void softError()  {
+        System.out.println("@@softError");
+        throw new SoftRuntimeException("softError");
+    }
+
 }

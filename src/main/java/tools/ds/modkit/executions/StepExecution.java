@@ -27,12 +27,21 @@ import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 public class StepExecution {
     public final List<StepExtension> steps = new ArrayList<>();
 
+//    public boolean isRunComplete() {
+//        return runComplete;
+//    }
+//
+//    public void endRun(boolean runComplete) {
+//        this.runComplete = runComplete;
+//    }
+//
+//    private boolean runComplete = false;
 
     public StepExecution(TestCase testCase) {
         System.out.println("@@StepExecutions:");
         List<PickleStepTestStep> pSteps = (List<PickleStepTestStep>) getProperty(testCase, "testSteps");
         setFlag(pSteps.get(pSteps.size() - 1), ObjDataRegistry.ObjFlags.LAST);
-        pSteps.forEach(step -> steps.add(new StepExtension(step)));
+        pSteps.forEach(step -> steps.add(new StepExtension(step, this)));
         System.out.println("@@pSteps: " + pSteps.size());
         int size = steps.size();
 
@@ -61,7 +70,7 @@ public class StepExecution {
                 parentStep.childSteps.add(currentStep);
             }
             System.out.println("@@000 currentStep: " + currentStep.getStepText());
-            System.out.println("@@000 parentStep: " + (parentStep == null  ? "END" : parentStep.getStepText()));
+            System.out.println("@@000 parentStep: " + (parentStep == null ? "END" : parentStep.getStepText()));
 
             nestingMap.put(currentNesting, currentStep);
 //            System.out.println("@@000 previousSibling: " + (previousSibling == null || previousSibling.nextSibling == null ? "END" : previousSibling.nextSibling.getStepText()));
@@ -75,8 +84,38 @@ public class StepExecution {
         runSteps(getScenarioState().testCase, getScenarioState().bus, getScenarioState().getTestCaseState(), executionMode);
     }
 
+    private boolean scenarioHardFail = false;
+    private boolean scenarioSoftFail = false;
+    private boolean scenarioComplete = false;
+
+    public boolean isScenarioFailed() {
+        return scenarioHardFail || scenarioSoftFail;
+    }
+
+    public boolean isScenarioHardFail() {
+        return scenarioHardFail;
+    }
+    public boolean isScenarioSoftFail() {
+        return scenarioSoftFail;
+    }
+    public void setScenarioHardFail() {
+        this.scenarioHardFail = true;
+        setScenarioComplete();
+    }
+    public void setScenarioSoftFail() {
+        this.scenarioSoftFail = true;
+    }
+
+    public void setScenarioComplete() {
+        this.scenarioComplete = true;
+    }
+    public boolean isScenarioComplete() {
+        return this.scenarioComplete;
+    }
+
 
     public void runSteps(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
+
         System.out.println("@@runSteps");
 
         System.out.println("@@gherkinView: " + getScenarioState().gherkinView);
@@ -87,12 +126,12 @@ public class StepExecution {
         System.out.println("\n@@getRuntime(): " + getRuntime());
 
 
-        ParsingMap parsingMap = getScenarioState().getTestMap();
+
         setFlag(testCase, ObjDataRegistry.ObjFlags.RUNNING);
 
         StepExtension currentStep = steps.get(0);
-        System.out.println("@@### runsteps!! " +currentStep.getStepText());
-        while(currentStep!=null) {
+        System.out.println("@@### runsteps!! " + currentStep.getStepText());
+        while (currentStep != null) {
             currentStep.run(testCase, bus, state, executionMode);
             currentStep = currentStep.nextSibling;
         }

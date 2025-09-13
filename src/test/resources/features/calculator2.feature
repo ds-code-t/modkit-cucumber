@@ -3,6 +3,26 @@ Feature: Tiny calculator2
   I want to verify my Cucumber customizations
   So that I can ship a reliable testing library
 
+  Scenario: sum sddsddf
+    Given a is 1 and b is 6
+
+
+  Scenario: sum  sddf
+    Given a is 1 and b is 6
+  : Given a is 2 and b is 6
+  ::Given a is 2 and b is 6
+#    * Hard Error
+    * Soft Error
+  : Given a is 3 and b is 6
+  :: Given a is 31 and b is 6
+  : Given a is 4 and b is 6
+    Given a is 5 and b is 6
+  : Given a is 2 and b is 6
+  ::  @[ALWAYS_RUN] Given a is 2 and b is 6
+    * Hard Error
+  :  @[ON_SCENARIO_FAIL] Given a is 333 and b is 6
+    Given a is 4 and b is 6
+
   Scenario: sum  <A> , <B>
     Given a is 3 and b is 6
     Then the result should be 9
@@ -15,9 +35,9 @@ Feature: Tiny calculator2
     Then the result should be <C>
 
     Examples:
-      | A  | B  | C |
-      | 11 | 22 | 33  |
-      | 33 | 44 | 78  |
+      | A  | B  | C  |
+      | 11 | 22 | 33 |
+      | 33 | 44 | 78 |
 
   Scenario: scenarioA1
     Given a is 2 and b is 5

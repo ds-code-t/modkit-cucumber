@@ -7,57 +7,71 @@ import io.cucumber.gherkin.GherkinDialects;
 import io.cucumber.messages.types.PickleStep;
 import io.cucumber.messages.types.PickleStepArgument;
 import io.cucumber.plugin.event.*;
+import tools.ds.modkit.executions.StepExecution;
 import tools.ds.modkit.mappings.ParsingMap;
+import tools.ds.modkit.status.SoftException;
+import tools.ds.modkit.status.SoftRuntimeException;
 import tools.ds.modkit.util.PickleStepArgUtils;
 import tools.ds.modkit.util.Reflect;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.metaFlag;
+import static tools.ds.modkit.extensions.StepExtension.StepFlag.*;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
+import static tools.ds.modkit.util.ExecutionModes.RUN;
+import static tools.ds.modkit.util.ExecutionModes.SKIP;
+import static tools.ds.modkit.util.KeyFunctions.getUniqueKey;
 import static tools.ds.modkit.util.Reflect.getProperty;
 import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 //import static tools.ds.modkit.util.stepbuilder.GherkinMessagesStepBuilder.cloneWithPickleStep;
 import static tools.ds.modkit.util.stepbuilder.StepUtilities.matchStepToStepDefinition;
 
-public class StepExtension implements PickleStepTestStep {
+public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.event.Step {
+
+    private boolean templateStep = true;
 
     public final PickleStepTestStep delegate;
     public final PickleStep rootStep;
     public final io.cucumber.core.gherkin.Step gherikinMessageStep;
     public final String rootText;
     public final String metaData;
-    public final int nestingLevel;
-    public final List<String> stepTags = new ArrayList<>();
+    public int nestingLevel;
+    public List<String> stepTags = new ArrayList<>();
     public final List<StepExtension> childSteps = new ArrayList<>();
     public StepExtension parentStep;
     public StepExtension previousSibling;
     public StepExtension nextSibling;
-
+    public final StepExecution stepExecution;
     public Result result;
 //    public final ParsingMap parsingMap;
 
-    public boolean shouldRun = true;
-
     private static final Pattern pattern = Pattern.compile("@\\[([^\\[\\]]+)\\]");
-    public StepExtension(PickleStepTestStep step) {
+
+    public StepExtension(PickleStepTestStep step, StepExecution stepExecution) {
+        this.stepExecution = stepExecution;
         this.delegate = step;
         this.gherikinMessageStep = (io.cucumber.core.gherkin.Step) getProperty(delegate, "step");
         this.rootStep = (PickleStep) getProperty(gherikinMessageStep, "pickleStep");
         String[] strings = ((String) getProperty(rootStep, "text")).split(metaFlag);
         rootText = strings[0].trim();
         metaData = strings.length == 1 ? "" : strings[1].trim();
-        Matcher matcher =  pattern.matcher(metaData);
+        Matcher matcher = pattern.matcher(metaData);
         while (matcher.find()) {
-            stepTags.add(matcher.group().substring(1).replaceAll("\\[\\]",""));
+            stepTags.add(matcher.group().substring(1).replaceAll("\\[|\\]", ""));
         }
-        nestingLevel = (int)  matcher.replaceAll("").chars().filter(ch -> ch == ':').count();
+
+//        EnumSet<StepFlag> stepFlags = EnumSet.noneOf(StepFlag.class);
+        for (String s : stepTags) try { stepFlags.add(StepFlag.valueOf(s.trim())); }
+        catch (Exception e) { throw new IllegalArgumentException("Illegal flag at " + getLocation() + " : " + s + " | Allowed: " + Arrays.stream(StepFlag.values()).map(Enum::name).collect(Collectors.joining(", "))); }
+
+
+        nestingLevel = (int) matcher.replaceAll("").chars().filter(ch -> ch == ':').count();
     }
 
     public StepExtension updateStep(ParsingMap parsingMap) {
@@ -75,20 +89,23 @@ public class StepExtension implements PickleStepTestStep {
                 gherikinMessageStep.getKeyword()
         );
 
-        Object pickleStepDefinitionMatch  = getUpdatedDefinition(getScenarioState().getRunner(),getScenarioState().getScenarioPickle() ,newGherikinMessageStep);
-        StepExtension newStep =  new StepExtension((PickleStepTestStep) Reflect.newInstance(
+        Object pickleStepDefinitionMatch = getUpdatedDefinition(getScenarioState().getRunner(), getScenarioState().getScenarioPickle(), newGherikinMessageStep);
+        StepExtension newStep = new StepExtension((PickleStepTestStep) Reflect.newInstance(
                 "io.cucumber.core.runner.PickleStepTestStep",
                 getId(),               // java.util.UUID
                 getUri(),                // java.net.URI
                 newGherikinMessageStep,        // io.cucumber.core.gherkin.Step (public)
                 pickleStepDefinitionMatch            // io.cucumber.core.runner.PickleStepDefinitionMatch (package-private instance is fine)
-        ));
+        ), stepExecution);
 
         newStep.childSteps.addAll(childSteps);
-        newStep.parentStep  = parentStep;
-        newStep.previousSibling  = previousSibling;
-        newStep.nextSibling  = nextSibling;
+        newStep.parentStep = parentStep;
+        newStep.previousSibling = previousSibling;
+        newStep.nextSibling = nextSibling;
+        newStep.nestingLevel = nestingLevel;
+        newStep.stepTags = stepTags;
 
+        newStep.templateStep = false;
         return newStep;
     }
 
@@ -100,22 +117,123 @@ public class StepExtension implements PickleStepTestStep {
     }
 
 
+    public boolean isFail() {
+        return hardFail || softFail;
+    }
+
+    public boolean isHardFail() {
+        return hardFail;
+    }
+
+    public boolean isSoftFail() {
+        return softFail;
+    }
+
+    public void setHardFail() {
+        this.hardFail = true;
+    }
+
+    public void setSoftFail() {
+        this.softFail = true;
+    }
+
+    private boolean hardFail = false;
+    private boolean softFail = false;
+
     public Object run(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
+        if(templateStep)
+        {
+         return updateStep(getScenarioState().getTestMap()).run(testCase,  bus,  state,  executionMode);
+        }
+
+        getScenarioState().register(this, getUniqueKey(this));
+
+        executionMode =  shouldRun() ? RUN(executionMode) : SKIP(executionMode);
+
+
         Object returnObj = invokeAnyMethod(delegate, "run", testCase, bus, state, executionMode);
         result = ((List<Result>) getProperty(state, "stepResults")).getLast();
+
+        System.out.println("\n\n===\n@@Step- " + getStepText());
+        System.out.println("@@REsults- " + result);
+
+        if (result.getStatus().equals(Status.FAILED)) {
+
+            Throwable throwable = result.getError();
+            if (throwable != null && (throwable.getClass().equals(SoftException.class) || throwable.getClass().equals(SoftRuntimeException.class)))
+                setSoftFail();
+            else
+                setHardFail();
+        }
+
+        if (!(containsAnyStepFlags(StepFlag.TRY) || stepExecution.isScenarioComplete())) {
+            System.out.println("@@isHardFail(): " + isHardFail());
+            System.out.println("@@isSoftFail(): " + isSoftFail());
+
+            if (isSoftFail())
+                stepExecution.setScenarioSoftFail();
+            else if (isHardFail())
+                stepExecution.setScenarioHardFail();
+
+            System.out.println("@@isScenarioHardFail(): " +   stepExecution.isScenarioHardFail());
+            System.out.println("@@isSoftFail(): " +   stepExecution.isScenarioSoftFail());
+            System.out.println("@@isScenarioComplete(): " +   stepExecution.isScenarioComplete());
+
+        }
+
+        StepFlag childFlag = result.
         System.out.println("@@PARENT:: steps: " + getStepText());
-        for(StepExtension step: childSteps)
-        {
+        for (StepExtension step : childSteps) {
             System.out.println("@@child steps: " + step.getStepText());
-            step.run( testCase, bus, state, executionMode);
+            step.run(testCase, bus, state, executionMode);
         }
         return returnObj;
     }
 
 
-//    public boolean shouldRun(){
-//
-//    }
+
+
+    public enum StepFlag {
+        ALWAYS_RUN, ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END, TRY , SKIP ,IGNORE
+    }
+    public enum postRunFlag {d
+        SKIPPED, IGNORED, FAILED
+    }
+
+
+    private final Set<StepFlag> stepFlags = EnumSet.noneOf(StepFlag.class);
+
+    public boolean containsAnyStepFlags(StepFlag... inputFlags) {
+        return Arrays.stream(inputFlags).anyMatch(stepFlags::contains);
+    }
+
+    public boolean containsAllStepFlags(StepFlag... inputFlags) {
+        return stepFlags.containsAll(Arrays.asList(inputFlags));
+    }
+
+
+    public boolean shouldRun() {
+        System.out.println("@@stepFlags: " + stepFlags);
+        if (containsAnyStepFlags(ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END))
+            stepExecution.setScenarioComplete();
+
+        if (containsAnyStepFlags(StepFlag.ALWAYS_RUN))
+            return true;
+
+        if (containsAnyStepFlags(ON_SCENARIO_FAIL)) {
+            return (stepExecution.isScenarioFailed());
+        }
+
+        if (containsAnyStepFlags(StepFlag.ON_SCENARIO_SOFT_FAIL))
+            return isSoftFail();
+        if (containsAnyStepFlags(StepFlag.ON_SCENARIO_HARD_FAIL))
+            return isHardFail();
+        if (containsAnyStepFlags(ON_SCENARIO_PASS))
+            return !(isHardFail() || isSoftFail());
+
+
+        return !stepExecution.isScenarioComplete();
+    }
 
 
     @Override
@@ -125,7 +243,7 @@ public class StepExtension implements PickleStepTestStep {
 
     @Override
     public Step getStep() {
-        return delegate.getStep();
+        return this;
     }
 
     @Override
@@ -164,6 +282,32 @@ public class StepExtension implements PickleStepTestStep {
     }
 
 
+    // from gherikin step
+
+    @Override
+    public StepArgument getArgument() {
+        return gherikinMessageStep.getArgument();
+    }
+
+    @Override
+    public String getKeyword() {
+        return gherikinMessageStep.getKeyword();
+    }
+
+    @Override
+    public String getText() {
+        return  " : ".repeat(nestingLevel) + gherikinMessageStep.getText();
+    }
+
+    @Override
+    public int getLine() {
+        return gherikinMessageStep.getLine();
+    }
+
+    @Override
+    public Location getLocation() {
+        return gherikinMessageStep.getLocation();
+    }
 
 
 }

@@ -32,16 +32,14 @@ public final class PickleStepRunPatch {
                         .around(
                                 args -> {
                                     System.out.println("@@around");
-                                    Object self = CallScope.currentSelf();
-                                    System.out.println("@@self1: " + self);
                                     Object testCase = args[0]; // io.cucumber.core.runner.TestCase (non-public)
                                     ObjFlags st = getFlag(testCase);
+                                    if (st.equals(ObjFlags.RUNNING))
+                                        return false;
+                                    Object self = CallScope.currentSelf();
                                     if (st.equals(ObjFlags.NOT_SET)) {
-//                                        beginNew((TestCase) testCase, (EventBus) args[1], (TestCaseState) args[2]);
                                         ScenarioState.setScenarioStateValues((TestCase) testCase, (EventBus) args[1], (TestCaseState) args[2]);
                                         setFlag(testCase, ObjFlags.INITIALIZING);
-                                    } else if (st.equals(ObjFlags.RUNNING)) {
-                                       return false;
                                     }
 
                                     if (containsFlags(self, ObjFlags.LAST)) {
