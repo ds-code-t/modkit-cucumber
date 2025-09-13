@@ -131,9 +131,13 @@ public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.ev
 
     public void setHardFail() {
         this.hardFail = true;
+        postRunFlags.add(PostRunFlag.HARD_FAILED);
+        postRunFlags.add(PostRunFlag.FAILED);
     }
 
     public void setSoftFail() {
+        postRunFlags.add(PostRunFlag.SOFT_FAILED);
+        postRunFlags.add(PostRunFlag.FAILED);
         this.softFail = true;
     }
 
@@ -181,7 +185,7 @@ public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.ev
 
         }
 
-        StepFlag childFlag = result.
+
         System.out.println("@@PARENT:: steps: " + getStepText());
         for (StepExtension step : childSteps) {
             System.out.println("@@child steps: " + step.getStepText());
@@ -196,24 +200,30 @@ public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.ev
     public enum StepFlag {
         ALWAYS_RUN, ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END, TRY , SKIP ,IGNORE
     }
-    public enum postRunFlag {d
-        SKIPPED, IGNORED, FAILED
-    }
-
-
-    private final Set<StepFlag> stepFlags = EnumSet.noneOf(StepFlag.class);
-
     public boolean containsAnyStepFlags(StepFlag... inputFlags) {
         return Arrays.stream(inputFlags).anyMatch(stepFlags::contains);
     }
-
     public boolean containsAllStepFlags(StepFlag... inputFlags) {
         return stepFlags.containsAll(Arrays.asList(inputFlags));
     }
+    private final Set<StepFlag> stepFlags = EnumSet.noneOf(StepFlag.class);
+
+
+    public enum PostRunFlag {
+        SKIPPED, IGNORED, FAILED, SOFT_FAILED, HARD_FAILED, PASSED
+    }
+    public boolean containsAnyPostRunFlags(PostRunFlag... inputFlags) {
+        return Arrays.stream(inputFlags).anyMatch(postRunFlags::contains);
+    }
+    public boolean containsAllPostRunFlags(PostRunFlag... inputFlags) {
+        return postRunFlags.containsAll(Arrays.asList(inputFlags));
+    }
+    private final Set<PostRunFlag> postRunFlags = EnumSet.noneOf(PostRunFlag.class);
 
 
     public boolean shouldRun() {
         System.out.println("@@stepFlags: " + stepFlags);
+        //TODO: ON_SCENARIO can only be added on steps not nested. throw descriptive error.
         if (containsAnyStepFlags(ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END))
             stepExecution.setScenarioComplete();
 
