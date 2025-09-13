@@ -3,9 +3,11 @@ Feature: Tiny calculator2
   I want to verify my Cucumber customizations
   So that I can ship a reliable testing library
 
-  Scenario: sum sddsddf
+  Scenario: sum sddsddf 22
     Given a is 1 and b is 6
-
+    * Hard Error
+  : Given a is 11 and b is 6
+    Given a is 2 and b is 6
 
   Scenario: sum  sddf
     Given a is 1 and b is 6

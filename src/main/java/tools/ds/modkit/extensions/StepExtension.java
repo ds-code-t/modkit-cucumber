@@ -32,7 +32,7 @@ import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 //import static tools.ds.modkit.util.stepbuilder.GherkinMessagesStepBuilder.cloneWithPickleStep;
 import static tools.ds.modkit.util.stepbuilder.StepUtilities.matchStepToStepDefinition;
 
-public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.event.Step {
+public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.event.Step {
 
     private boolean templateStep = true;
 
@@ -67,8 +67,12 @@ public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.ev
         }
 
 //        EnumSet<StepFlag> stepFlags = EnumSet.noneOf(StepFlag.class);
-        for (String s : stepTags) try { stepFlags.add(StepFlag.valueOf(s.trim())); }
-        catch (Exception e) { throw new IllegalArgumentException("Illegal flag at " + getLocation() + " : " + s + " | Allowed: " + Arrays.stream(StepFlag.values()).map(Enum::name).collect(Collectors.joining(", "))); }
+        for (String s : stepTags)
+            try {
+                stepFlags.add(StepFlag.valueOf(s.trim()));
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Illegal flag at " + getLocation() + " : " + s + " | Allowed: " + Arrays.stream(StepFlag.values()).map(Enum::name).collect(Collectors.joining(", ")));
+            }
 
 
         nestingLevel = (int) matcher.replaceAll("").chars().filter(ch -> ch == ':').count();
@@ -144,15 +148,18 @@ public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.ev
     private boolean hardFail = false;
     private boolean softFail = false;
 
+    private boolean skipped = false;
+
     public Object run(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
-        if(templateStep)
-        {
-         return updateStep(getScenarioState().getTestMap()).run(testCase,  bus,  state,  executionMode);
+        if (templateStep) {
+            return updateStep(getScenarioState().getTestMap()).run(testCase, bus, state, executionMode);
         }
 
         getScenarioState().register(this, getUniqueKey(this));
 
-        executionMode =  shouldRun() ? RUN(executionMode) : SKIP(executionMode);
+        skipped = stepExecution.isScenarioComplete();
+
+        executionMode = shouldRun() ? RUN(executionMode) : SKIP(executionMode);
 
 
         Object returnObj = invokeAnyMethod(delegate, "run", testCase, bus, state, executionMode);
@@ -170,24 +177,28 @@ public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.ev
                 setHardFail();
         }
 
-        if (!(containsAnyStepFlags(StepFlag.TRY) || stepExecution.isScenarioComplete())) {
+        if (!(containsAnyStepFlags(StepFlag.TRY) || stepExecution.isScenarioComplete() || containsAnyStepFlags(onScenarioFlags))) {
             System.out.println("@@isHardFail(): " + isHardFail());
             System.out.println("@@isSoftFail(): " + isSoftFail());
 
-            if (isSoftFail())
-                stepExecution.setScenarioSoftFail();
-            else if (isHardFail())
-                stepExecution.setScenarioHardFail();
+            System.out.println("@@stepExecution.isScenarioComplete() "+  stepExecution.isScenarioComplete() );
+            System.out.println("@@!(stepExecution.isScenarioComplete() || containsAnyStepFlags(onScenarioFlags)) " + !(stepExecution.isScenarioComplete() || containsAnyStepFlags(onScenarioFlags)));
+                if (isSoftFail())
+                    stepExecution.setScenarioSoftFail();
+                else if (isHardFail())
+                    stepExecution.setScenarioHardFail();
 
-            System.out.println("@@isScenarioHardFail(): " +   stepExecution.isScenarioHardFail());
-            System.out.println("@@isSoftFail(): " +   stepExecution.isScenarioSoftFail());
-            System.out.println("@@isScenarioComplete(): " +   stepExecution.isScenarioComplete());
+            System.out.println("@@isScenarioHardFail(): " + stepExecution.isScenarioHardFail());
+            System.out.println("@@isSoftFail(): " + stepExecution.isScenarioSoftFail());
+            System.out.println("@@isScenarioComplete(): " + stepExecution.isScenarioComplete());
 
         }
 
 
         System.out.println("@@PARENT:: steps: " + getStepText());
         for (StepExtension step : childSteps) {
+            step.skipped = stepExecution.isScenarioComplete() || isFail() || skipped;
+            intersectWith(onScenarioFlags);
             System.out.println("@@child steps: " + step.getStepText());
             step.run(testCase, bus, state, executionMode);
         }
@@ -195,37 +206,48 @@ public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.ev
     }
 
 
-
-
     public enum StepFlag {
-        ALWAYS_RUN, ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END, TRY , SKIP ,IGNORE
+        ALWAYS_RUN, ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END, TRY, SKIP, IGNORE
     }
+
+    private final StepFlag[] onScenarioFlags = new StepFlag[]{ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END};
+
     public boolean containsAnyStepFlags(StepFlag... inputFlags) {
         return Arrays.stream(inputFlags).anyMatch(stepFlags::contains);
     }
+
     public boolean containsAllStepFlags(StepFlag... inputFlags) {
         return stepFlags.containsAll(Arrays.asList(inputFlags));
     }
+
     private final Set<StepFlag> stepFlags = EnumSet.noneOf(StepFlag.class);
 
+
+    public void intersectWith( StepFlag... items) {
+        if(parentStep == null)
+            return;
+        for (StepFlag f : items) if (parentStep.stepFlags.contains(f)) stepFlags.add(f);
+    }
 
     public enum PostRunFlag {
         SKIPPED, IGNORED, FAILED, SOFT_FAILED, HARD_FAILED, PASSED
     }
+
     public boolean containsAnyPostRunFlags(PostRunFlag... inputFlags) {
         return Arrays.stream(inputFlags).anyMatch(postRunFlags::contains);
     }
+
     public boolean containsAllPostRunFlags(PostRunFlag... inputFlags) {
         return postRunFlags.containsAll(Arrays.asList(inputFlags));
     }
+
     private final Set<PostRunFlag> postRunFlags = EnumSet.noneOf(PostRunFlag.class);
 
 
     public boolean shouldRun() {
         System.out.println("@@stepFlags: " + stepFlags);
-        //TODO: ON_SCENARIO can only be added on steps not nested. throw descriptive error.
-        if (containsAnyStepFlags(ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END))
-            stepExecution.setScenarioComplete();
+//        if (containsAnyStepFlags(onScenarioFlags))
+//            stepExecution.setScenarioComplete();
 
         if (containsAnyStepFlags(StepFlag.ALWAYS_RUN))
             return true;
@@ -241,8 +263,12 @@ public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.ev
         if (containsAnyStepFlags(ON_SCENARIO_PASS))
             return !(isHardFail() || isSoftFail());
 
-
-        return !stepExecution.isScenarioComplete();
+        System.out.println("@@skipped: " + skipped);
+        return !skipped;
+//        if(skipped)
+//            return false;
+//
+//        return !stepExecution.isScenarioComplete();
     }
 
 
@@ -306,7 +332,7 @@ public class StepExtension implements PickleStepTestStep , io.cucumber.plugin.ev
 
     @Override
     public String getText() {
-        return  " : ".repeat(nestingLevel) + gherikinMessageStep.getText();
+        return " : ".repeat(nestingLevel) + gherikinMessageStep.getText();
     }
 
     @Override
