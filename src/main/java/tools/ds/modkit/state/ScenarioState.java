@@ -8,6 +8,7 @@ import io.cucumber.messages.types.Location;
 import io.cucumber.plugin.event.TestCase;
 import io.cucumber.tagexpressions.Expression;
 import tools.ds.modkit.executions.StepExecution;
+import tools.ds.modkit.extensions.StepExtension;
 import tools.ds.modkit.mappings.ParsingMap;
 import tools.ds.modkit.util.CucumberQueryUtil;
 import tools.ds.modkit.util.CucumberTagUtils;
@@ -15,10 +16,23 @@ import tools.ds.modkit.util.CucumberTagUtils;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static tools.ds.modkit.state.GlobalState.K_RUNTIME;
+
+import static tools.ds.modkit.blackbox.BlackBoxBootstrap.K_RUNNER;
+import static tools.ds.modkit.blackbox.BlackBoxBootstrap.K_SCENARIO;
 import static tools.ds.modkit.util.Reflect.*;
 
 public final class ScenarioState {
+
+
+    public StepExtension getCurrentStep() {
+        return currentStep;
+    }
+
+    public void setCurrentStep(StepExtension currentStep) {
+        this.currentStep = currentStep;
+    }
+
+    private StepExtension currentStep;
 
     public ParsingMap getTestMap() {
         return testMap;
@@ -27,11 +41,7 @@ public final class ScenarioState {
     // Canonical keys (unchanged)
     private ParsingMap testMap = new ParsingMap();
 
-    public static final String K_TEST_CASE = "io.cucumber.core.runner.TestCase";
-    //    private static final String K_PICKLE = "io.cucumber.messages.types.Pickle";
-    public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.GherkinMessagesPickle";
-    public static final String K_SCENARIO = "io.cucumber.messages.types.Scenario";
-    public static final String K_RUNNER = "io.cucumber.core.runner.Runner";
+
 
 
     /**

@@ -51,6 +51,19 @@ public class NodeMap {
         MAPPER.registerModule(new GuavaModule());
     }
 
+    /**
+     * Store: each top-level key maps to an ArrayNode (history/log).
+     */
+    private final ObjectNode multi;
+
+    public NodeMap() {
+        multi = MAPPER.createObjectNode();
+    }
+
+    public NodeMap(Object object) {
+        multi = MAPPER.valueToTree(object);
+    }
+
     // JsonPath configs
     private static final Configuration NORMAL_CFG = Configuration.builder()
             .jsonProvider(new JacksonJsonNodeJsonProvider())
@@ -69,10 +82,6 @@ public class NodeMap {
             .options(Option.ALWAYS_RETURN_LIST, Option.SUPPRESS_EXCEPTIONS)
             .build();
 
-    /**
-     * Store: each top-level key maps to an ArrayNode (history/log).
-     */
-    private final ObjectNode multi = MAPPER.createObjectNode();
 
     /**
      * Sidecar to keep original POJOs by JSON Pointer (so we can retrieve them later).
@@ -208,7 +217,6 @@ public class NodeMap {
 //    }
 
 
-
     public ArrayNode get(Object key) {
         final String raw = String.valueOf(key).trim();
 
@@ -284,8 +292,9 @@ public class NodeMap {
     }
 
 
-
-    /** Wrap any node as an ArrayNode: null → [], array → itself, other → [node]. */
+    /**
+     * Wrap any node as an ArrayNode: null → [], array → itself, other → [node].
+     */
     private ArrayNode toArrayNode(JsonNode n) {
         if (n == null || n.isNull()) return MAPPER.createArrayNode();
         if (n.isArray()) return (ArrayNode) n;

@@ -12,7 +12,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static tools.ds.modkit.blackbox.Plans.*;
-import static tools.ds.modkit.state.GlobalState.K_RUNTIME;
 import static tools.ds.modkit.state.ScenarioState.*;
 import static tools.ds.modkit.util.KeyFunctions.getUniqueKey;
 
@@ -26,6 +25,15 @@ public final class BlackBoxBootstrap {
 //\u206E – NATIONAL DIGIT SHAPES (deprecated)
 //\u206F – NOMINAL DIGIT SHAPES (deprecated)
 
+    //    public static final String K_OPTIONS = "io.cucumber.core.options.RuntimeOptions";
+    public static final String K_RUNTIME = "io.cucumber.core.runtime.Runtime";
+    public static final String K_FEATUREPARSER = "io.cucumber.core.feature.FeatureParser";
+    public static final String K_FEATURESUPPLIER = "io.cucumber.core.runtime.FeaturePathFeatureSupplier";
+    public static final String K_TEST_CASE = "io.cucumber.core.runner.TestCase";
+    //    private static final String K_PICKLE = "io.cucumber.messages.types.Pickle";
+    public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.GherkinMessagesPickle";
+    public static final String K_SCENARIO = "io.cucumber.messages.types.Scenario";
+    public static final String K_RUNNER = "io.cucumber.core.runner.Runner";
 
     public static final String metaFlag = "\u206A-TEXT";
 
@@ -54,7 +62,9 @@ public final class BlackBoxBootstrap {
 // Or global:
         CtorRegistryDSL.globalRegisterConstructed(
                 List.of(
-                        K_RUNTIME
+                        K_RUNTIME,
+                        K_FEATUREPARSER,
+                        K_FEATURESUPPLIER
                 )
         );
 

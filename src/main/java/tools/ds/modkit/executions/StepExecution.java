@@ -7,6 +7,7 @@ import io.cucumber.plugin.event.Status;
 import io.cucumber.plugin.event.TestCase;
 import tools.ds.modkit.extensions.StepExtension;
 import tools.ds.modkit.mappings.ParsingMap;
+import tools.ds.modkit.state.ScenarioState;
 import tools.ds.modkit.status.SoftException;
 import tools.ds.modkit.status.SoftRuntimeException;
 import tools.ds.modkit.trace.ObjDataRegistry;
@@ -16,7 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static tools.ds.modkit.state.GlobalState.getRuntime;
+import static tools.ds.modkit.state.GlobalState.*;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.trace.ObjDataRegistry.setFlag;
 import static tools.ds.modkit.util.ExecutionModes.RUN;
@@ -125,13 +126,17 @@ public class StepExecution {
 //        System.out.println("\n@@getRuntime(): " +     getScenarioState().getRuntime());
         System.out.println("\n@@getRuntime(): " + getRuntime());
 
+        System.out.println("\n@@getFeatureSupplier(): " + getFeatureSupplier());
+
 
 
         setFlag(testCase, ObjDataRegistry.ObjFlags.RUNNING);
 
         StepExtension currentStep = steps.get(0);
         System.out.println("@@### runsteps!! " + currentStep.getStepText());
+        ScenarioState scenarioState = getScenarioState();
         while (currentStep != null) {
+            scenarioState.setCurrentStep(currentStep);
             currentStep.run(testCase, bus, state, executionMode);
             currentStep = currentStep.nextSibling;
         }

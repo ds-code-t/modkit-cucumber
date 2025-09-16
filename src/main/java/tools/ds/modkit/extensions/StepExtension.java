@@ -3,12 +3,15 @@ package tools.ds.modkit.extensions;
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
 import io.cucumber.core.runner.Runner;
+import io.cucumber.datatable.DataTable;
 import io.cucumber.gherkin.GherkinDialects;
 import io.cucumber.messages.types.PickleStep;
 import io.cucumber.messages.types.PickleStepArgument;
 import io.cucumber.plugin.event.*;
 import tools.ds.modkit.executions.StepExecution;
+import tools.ds.modkit.mappings.NodeMap;
 import tools.ds.modkit.mappings.ParsingMap;
+import tools.ds.modkit.mappings.StepMap;
 import tools.ds.modkit.status.SoftException;
 import tools.ds.modkit.status.SoftRuntimeException;
 import tools.ds.modkit.util.PickleStepArgUtils;
@@ -34,6 +37,14 @@ import static tools.ds.modkit.util.stepbuilder.StepUtilities.matchStepToStepDefi
 
 public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.event.Step {
 
+    public StepMap getStepMap() {
+        return stepMap;
+    }
+
+
+
+    private StepMap stepMap;
+
     private boolean templateStep = true;
 
     public final PickleStepTestStep delegate;
@@ -49,6 +60,23 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     public StepExtension nextSibling;
     public final StepExecution stepExecution;
     public Result result;
+
+    public List<Object> getExecutionArguments() {
+        return executionArguments;
+    }
+
+    public void setExecutionArguments(List<Object> executionArguments) {
+        this.executionArguments = executionArguments;
+        this.stepMap =new StepMap(executionArguments);
+//        DataTable table = executionArguments.stream()
+//                .filter(DataTable.class::isInstance)
+//                .map(DataTable.class::cast)
+//                .findFirst()
+//                .orElse(null);
+//        System.out.println("@@table: " + table);
+    }
+
+    private List<Object> executionArguments;
 //    public final ParsingMap parsingMap;
 
     private static final Pattern pattern = Pattern.compile("@\\[([^\\[\\]]+)\\]");
@@ -73,13 +101,14 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
             } catch (Exception e) {
                 throw new IllegalArgumentException("Illegal flag at " + getLocation() + " : " + s + " | Allowed: " + Arrays.stream(StepFlag.values()).map(Enum::name).collect(Collectors.joining(", ")));
             }
-
-
         nestingLevel = (int) matcher.replaceAll("").chars().filter(ch -> ch == ':').count();
+
+
     }
 
     public StepExtension updateStep(ParsingMap parsingMap) {
         PickleStepArgument argument = rootStep.getArgument().orElse(null);
+        System.out.println("@@==argument: " + argument);
         UnaryOperator<String> external = parsingMap::resolveWholeText;
         PickleStepArgument newPickleStepArgument = PickleStepArgUtils.transformPickleArgument(argument, external);
         PickleStep pickleStep = new PickleStep(newPickleStepArgument, rootStep.getAstNodeIds(), rootStep.getId(), rootStep.getType().orElse(null), parsingMap.resolveWholeText(rootStep.getText()));
@@ -94,6 +123,8 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         );
 
         Object pickleStepDefinitionMatch = getUpdatedDefinition(getScenarioState().getRunner(), getScenarioState().getScenarioPickle(), newGherikinMessageStep);
+        List<io.cucumber.core.stepexpression.Argument>  args = (List<io.cucumber.core.stepexpression.Argument>) getProperty(pickleStepDefinitionMatch, "arguments");
+        setExecutionArguments(args.stream().map(io.cucumber.core.stepexpression.Argument::getValue).toList());
         StepExtension newStep = new StepExtension((PickleStepTestStep) Reflect.newInstance(
                 "io.cucumber.core.runner.PickleStepTestStep",
                 getId(),               // java.util.UUID
