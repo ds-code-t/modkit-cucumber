@@ -17,4 +17,9 @@ Feature: Tiny calculator
       | 1        | 11 | 222 |
 
 
-#  @[ALWAYS_RUN] Given a is 2 and b is 5
+  Scenario: getScenarios 1
+    Then RUN SCENARIOS:
+      | Scenario Tags |
+      | @aa           |
+
+

@@ -1,17 +1,8 @@
 package tools.ds.modkit.mappings;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.collect.ArrayListMultimap;
 import io.cucumber.datatable.DataTable;
-import tools.ds.modkit.extensions.StepExtension;
-
-import javax.xml.crypto.Data;
-import java.util.ArrayList;
 import java.util.List;
-
-import static tools.ds.modkit.mappings.GlobalMappings.GLOBALS;
-import static tools.ds.modkit.mappings.KeyParser.Kind.SINGLE;
-import static tools.ds.modkit.mappings.KeyParser.parseKey;
 
 public class StepMap extends ParsingMap {
 
@@ -20,11 +11,6 @@ public class StepMap extends ParsingMap {
 
     private static final String rowMap = "rowMap";
     private static final String tableMap = "tableMap";
-
-
-//    public StepMap() {
-//        maps.put(runMap, new NodeMap());
-//    }
 
 
     public StepMap(List<Object> executionArguments) {

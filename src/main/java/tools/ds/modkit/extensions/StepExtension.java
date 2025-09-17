@@ -2,14 +2,11 @@ package tools.ds.modkit.extensions;
 
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
-import io.cucumber.core.runner.Runner;
-import io.cucumber.datatable.DataTable;
 import io.cucumber.gherkin.GherkinDialects;
 import io.cucumber.messages.types.PickleStep;
 import io.cucumber.messages.types.PickleStepArgument;
 import io.cucumber.plugin.event.*;
 import tools.ds.modkit.executions.StepExecution;
-import tools.ds.modkit.mappings.NodeMap;
 import tools.ds.modkit.mappings.ParsingMap;
 import tools.ds.modkit.mappings.StepMap;
 import tools.ds.modkit.status.SoftException;
@@ -33,14 +30,13 @@ import static tools.ds.modkit.util.KeyFunctions.getUniqueKey;
 import static tools.ds.modkit.util.Reflect.getProperty;
 import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 //import static tools.ds.modkit.util.stepbuilder.GherkinMessagesStepBuilder.cloneWithPickleStep;
-import static tools.ds.modkit.util.stepbuilder.StepUtilities.matchStepToStepDefinition;
+import static tools.ds.modkit.util.stepbuilder.StepUtilities.getDefinition;
 
 public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.event.Step {
 
     public StepMap getStepMap() {
         return stepMap;
     }
-
 
 
     private StepMap stepMap;
@@ -67,7 +63,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
     public void setExecutionArguments(List<Object> executionArguments) {
         this.executionArguments = executionArguments;
-        this.stepMap =new StepMap(executionArguments);
+        this.stepMap = new StepMap(executionArguments);
 //        DataTable table = executionArguments.stream()
 //                .filter(DataTable.class::isInstance)
 //                .map(DataTable.class::cast)
@@ -80,6 +76,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 //    public final ParsingMap parsingMap;
 
     private static final Pattern pattern = Pattern.compile("@\\[([^\\[\\]]+)\\]");
+
 
     public StepExtension(PickleStepTestStep step, StepExecution stepExecution) {
         this.stepExecution = stepExecution;
@@ -122,8 +119,8 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
                 gherikinMessageStep.getKeyword()
         );
 
-        Object pickleStepDefinitionMatch = getUpdatedDefinition(getScenarioState().getRunner(), getScenarioState().getScenarioPickle(), newGherikinMessageStep);
-        List<io.cucumber.core.stepexpression.Argument>  args = (List<io.cucumber.core.stepexpression.Argument>) getProperty(pickleStepDefinitionMatch, "arguments");
+        Object pickleStepDefinitionMatch = getDefinition(getScenarioState().getRunner(), getScenarioState().getScenarioPickle(), newGherikinMessageStep);
+        List<io.cucumber.core.stepexpression.Argument> args = (List<io.cucumber.core.stepexpression.Argument>) getProperty(pickleStepDefinitionMatch, "arguments");
         setExecutionArguments(args.stream().map(io.cucumber.core.stepexpression.Argument::getValue).toList());
         StepExtension newStep = new StepExtension((PickleStepTestStep) Reflect.newInstance(
                 "io.cucumber.core.runner.PickleStepTestStep",
@@ -144,12 +141,8 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         return newStep;
     }
 
-    public static Object getUpdatedDefinition(Runner runner, io.cucumber.core.gherkin.Pickle scenarioPickle, io.cucumber.core.gherkin.Step step) {
-        System.out.println("\n##@@runner: " + runner);
-        System.out.println("##@@scenarioPickle: " + scenarioPickle);
-        System.out.println("##@@step: " + step);
-        return matchStepToStepDefinition(runner, scenarioPickle, step);
-    }
+
+
 
 
     public boolean isFail() {
@@ -212,12 +205,12 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
             System.out.println("@@isHardFail(): " + isHardFail());
             System.out.println("@@isSoftFail(): " + isSoftFail());
 
-            System.out.println("@@stepExecution.isScenarioComplete() "+  stepExecution.isScenarioComplete() );
+            System.out.println("@@stepExecution.isScenarioComplete() " + stepExecution.isScenarioComplete());
             System.out.println("@@!(stepExecution.isScenarioComplete() || containsAnyStepFlags(onScenarioFlags)) " + !(stepExecution.isScenarioComplete() || containsAnyStepFlags(onScenarioFlags)));
-                if (isSoftFail())
-                    stepExecution.setScenarioSoftFail();
-                else if (isHardFail())
-                    stepExecution.setScenarioHardFail();
+            if (isSoftFail())
+                stepExecution.setScenarioSoftFail();
+            else if (isHardFail())
+                stepExecution.setScenarioHardFail();
 
             System.out.println("@@isScenarioHardFail(): " + stepExecution.isScenarioHardFail());
             System.out.println("@@isSoftFail(): " + stepExecution.isScenarioSoftFail());
@@ -254,8 +247,8 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     private final Set<StepFlag> stepFlags = EnumSet.noneOf(StepFlag.class);
 
 
-    public void intersectWith( StepFlag... items) {
-        if(parentStep == null)
+    public void intersectWith(StepFlag... items) {
+        if (parentStep == null)
             return;
         for (StepFlag f : items) if (parentStep.stepFlags.contains(f)) stepFlags.add(f);
     }

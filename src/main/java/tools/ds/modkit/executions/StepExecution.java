@@ -44,21 +44,59 @@ public class StepExecution {
         setFlag(pSteps.get(pSteps.size() - 1), ObjDataRegistry.ObjFlags.LAST);
         pSteps.forEach(step -> steps.add(new StepExtension(step, this)));
         System.out.println("@@pSteps: " + pSteps.size());
+
+//        int size = steps.size();
+//
+//
+//        Map<Integer, StepExtension> nestingMap = new HashMap<>();
+//
+//        int lastNestingLevel = 0;
+//
+//
+//        for (int s = 0; s < size; s++) {
+//            StepExtension currentStep = steps.get(s);
+//            int currentNesting = currentStep.nestingLevel;
+//
+//
+//            StepExtension parentStep = nestingMap.get(currentNesting - 1);
+//
+//
+//            StepExtension previousSibling = currentNesting > lastNestingLevel ? null : nestingMap.get(currentNesting);
+//
+//            if (previousSibling != null) {
+//                previousSibling.nextSibling = currentStep;
+//                currentStep.previousSibling = previousSibling;
+//            }
+//            if (parentStep != null) {
+//                currentStep.parentStep = parentStep;
+//                parentStep.childSteps.add(currentStep);
+//            }
+//            System.out.println("@@000 currentStep: " + currentStep.getStepText());
+//            System.out.println("@@000 parentStep: " + (parentStep == null ? "END" : parentStep.getStepText()));
+//
+//            nestingMap.put(currentNesting, currentStep);
+////            System.out.println("@@000 previousSibling: " + (previousSibling == null || previousSibling.nextSibling == null ? "END" : previousSibling.nextSibling.getStepText()));
+//            lastNestingLevel = currentNesting;
+//
+//        }
+        Map<Integer, StepExtension> nestingMap = new HashMap<>();
+        setNesting(steps, 0, nestingMap);
+    }
+
+    public static void setNesting(List<StepExtension> steps, int startingNesting, Map<Integer, StepExtension> nestingMap) {
         int size = steps.size();
 
 
-        Map<Integer, StepExtension> nestingMap = new HashMap<>();
+//        Map<Integer, StepExtension> nestingMap = new HashMap<>();
 
         int lastNestingLevel = 0;
 
 
         for (int s = 0; s < size; s++) {
             StepExtension currentStep = steps.get(s);
-            int currentNesting = currentStep.nestingLevel;
-
+            int currentNesting = currentStep.nestingLevel + startingNesting;
 
             StepExtension parentStep = nestingMap.get(currentNesting - 1);
-
 
             StepExtension previousSibling = currentNesting > lastNestingLevel ? null : nestingMap.get(currentNesting);
 
