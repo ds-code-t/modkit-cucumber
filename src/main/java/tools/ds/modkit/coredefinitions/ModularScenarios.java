@@ -36,7 +36,7 @@ public class ModularScenarios {
             List<Pickle> pickles = listPickles(cucumberProps);
             System.out.println("@@pickles size: " + pickles);
             StepExtension currentStep = getScenarioState().getCurrentStep();
-            int startingNestingLevel = getScenarioState().getCurrentStep().nestingLevel + 1;
+            int startingNestingLevel = getScenarioState().getCurrentStep().getNestingLevel() + 1;
             Map<Integer, StepExtension> nestingMap = new HashMap<>();
             nestingMap.put(startingNestingLevel-1, currentStep);
             StepExecution stepExecution = getScenarioState().stepExecution;
@@ -44,7 +44,11 @@ public class ModularScenarios {
                 System.out.println("@@pickle name: " + pickle.getName());
                 List<StepExtension> stepExtensions = pickle.getSteps().stream().map(s -> new StepExtension(createPickleStepTestStep(s, bus.generateId(), pickle.getUri()), stepExecution)).toList();
 //                stepExtensions.forEach(s -> s.parentStep = currentStep);
-                currentStep.childSteps.addAll(stepExtensions);
+                System.out.println("@@stepExtensions.size : " + stepExtensions.size());
+//                currentStep.childSteps.addAll(stepExtensions);
+                System.out.println("@@currentStep- : " + currentStep.getStepText());
+                System.out.println("@@currentStep-childSteps : " + currentStep.getChildSteps());
+//                System.out.println("@@currentStep-childSteps1getStepText() : " + currentStep.getChildSteps().getFirst().getStepText());
                 setNesting(stepExtensions, startingNestingLevel, nestingMap);
             }
         }

@@ -48,12 +48,56 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     public final io.cucumber.core.gherkin.Step gherikinMessageStep;
     public final String rootText;
     public final String metaData;
-    public int nestingLevel;
+
+    public int getNestingLevel() {
+        return nestingLevel;
+    }
+
+    public void setNestingLevel(int nestingLevel) {
+        this.nestingLevel = nestingLevel;
+    }
+
+    private int nestingLevel;
     public List<String> stepTags = new ArrayList<>();
-    public final List<StepExtension> childSteps = new ArrayList<>();
-    public StepExtension parentStep;
-    public StepExtension previousSibling;
-    public StepExtension nextSibling;
+
+    public List<StepExtension> getChildSteps() {
+        return childSteps;
+    }
+
+    private final List<StepExtension> childSteps = new ArrayList<>();
+
+
+    public StepExtension getParentStep() {
+        return parentStep;
+    }
+
+    public void setParentStep(StepExtension parentStep) {
+        parentStep.childSteps.add(this);
+        this.parentStep = parentStep;
+    }
+
+    public StepExtension getPreviousSibling() {
+        return previousSibling;
+    }
+
+    public void setPreviousSibling(StepExtension previousSibling) {
+        previousSibling.nextSibling = this;
+        this.previousSibling = previousSibling;
+    }
+
+
+    public StepExtension getNextSibling() {
+        return nextSibling;
+    }
+
+    public void setNextSibling(StepExtension nextSibling) {
+        nextSibling.previousSibling = this;
+        this.nextSibling = nextSibling;
+    }
+
+    private StepExtension parentStep;
+    private StepExtension previousSibling;
+    private StepExtension nextSibling;
     public final StepExecution stepExecution;
     public Result result;
 
@@ -142,9 +186,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     }
 
 
-
-
-
     public boolean isFail() {
         return hardFail || softFail;
     }
@@ -175,9 +216,12 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     private boolean skipped = false;
 
     public Object run(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
+        System.out.println("@@templateStep: " + templateStep);
+        System.out.println("@@run-step: " + getStepText());
         if (templateStep) {
             return updateStep(getScenarioState().getTestMap()).run(testCase, bus, state, executionMode);
         }
+        getScenarioState().setCurrentStep(this);
 
         getScenarioState().register(this, getUniqueKey(this));
 
@@ -220,6 +264,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
 
         System.out.println("@@PARENT:: steps: " + getStepText());
+        System.out.println("@@childStep-: " + childSteps);
         for (StepExtension step : childSteps) {
             step.skipped = stepExecution.isScenarioComplete() || isFail() || skipped;
             intersectWith(onScenarioFlags);
@@ -356,7 +401,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
     @Override
     public String getText() {
-        return " : ".repeat(nestingLevel) + gherikinMessageStep.getText();
+        return "\u00A0\u00A0\u00A0\u00A0\u00A0".repeat(nestingLevel) + gherikinMessageStep.getText();
     }
 
     @Override

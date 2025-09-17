@@ -94,19 +94,21 @@ public class StepExecution {
 
         for (int s = 0; s < size; s++) {
             StepExtension currentStep = steps.get(s);
-            int currentNesting = currentStep.nestingLevel + startingNesting;
+            currentStep.setNestingLevel(currentStep.getNestingLevel() + startingNesting);
+//            int currentNesting = currentStep.nestingLevel + startingNesting;
+            int currentNesting = currentStep.getNestingLevel();
 
             StepExtension parentStep = nestingMap.get(currentNesting - 1);
 
             StepExtension previousSibling = currentNesting > lastNestingLevel ? null : nestingMap.get(currentNesting);
 
             if (previousSibling != null) {
-                previousSibling.nextSibling = currentStep;
-                currentStep.previousSibling = previousSibling;
+                previousSibling.setNextSibling(currentStep);
+//                currentStep.previousSibling = previousSibling;
             }
             if (parentStep != null) {
-                currentStep.parentStep = parentStep;
-                parentStep.childSteps.add(currentStep);
+                currentStep.setParentStep(parentStep);
+//                parentStep.childSteps.add(currentStep);
             }
             System.out.println("@@000 currentStep: " + currentStep.getStepText());
             System.out.println("@@000 parentStep: " + (parentStep == null ? "END" : parentStep.getStepText()));
@@ -174,9 +176,8 @@ public class StepExecution {
         System.out.println("@@### runsteps!! " + currentStep.getStepText());
         ScenarioState scenarioState = getScenarioState();
         while (currentStep != null) {
-            scenarioState.setCurrentStep(currentStep);
             currentStep.run(testCase, bus, state, executionMode);
-            currentStep = currentStep.nextSibling;
+            currentStep = currentStep.getNextSibling();
         }
 
 

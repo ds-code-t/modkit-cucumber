@@ -48,7 +48,7 @@ public class StepDefs {
 
 
     @Given("test dtable2")
-    public void test_dtable2(@Transpose List<Map<String,String>> mapList) {
+    public void test_dtable2(@Transpose List<Map<String, String>> mapList) {
         System.out.println("@@mapList: " + mapList);
         List<Object> args = getScenarioState().getCurrentStep().getExecutionArguments();
         System.out.println("@@getExecutionArguments(): " + args.getFirst());
@@ -62,6 +62,8 @@ public class StepDefs {
         System.out.println("@@a_is_and_b_is");
         this.a = a;
         this.b = b;
+        if (a + b == 6)
+            throw new RuntimeException("Ss");
     }
 
     @When("^I add them (.*)$")

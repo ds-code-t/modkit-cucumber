@@ -2,7 +2,12 @@ Feature: Tiny calculator
 
   @bb @TagK @aa
   Scenario: scenarioA12
-    Given a is 2 and b is 5
+    Given a is 2 and b is 1
+    : Given a is 2 and b is 2
+    :: Given a is 2 and b is 3
+    Given a is 4 and b is 1
+  : Given a is 4 and b is 2
+  :: Given a is 4 and b is 3
 
 
   Scenario: scenario test dtable
