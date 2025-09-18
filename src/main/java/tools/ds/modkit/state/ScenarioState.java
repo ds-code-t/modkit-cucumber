@@ -1,14 +1,14 @@
 package tools.ds.modkit.state;
 
+import com.google.common.collect.LinkedListMultimap;
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
-import io.cucumber.core.options.RuntimeOptions;
+import io.cucumber.core.gherkin.Pickle;
 import io.cucumber.core.runner.Runner;
-import io.cucumber.messages.types.Location;
 import io.cucumber.plugin.event.TestCase;
-import io.cucumber.tagexpressions.Expression;
 import tools.ds.modkit.executions.StepExecution;
 import tools.ds.modkit.extensions.StepExtension;
+import tools.ds.modkit.mappings.NodeMap;
 import tools.ds.modkit.mappings.ParsingMap;
 import tools.ds.modkit.util.CucumberQueryUtil;
 import tools.ds.modkit.util.CucumberTagUtils;
@@ -19,10 +19,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.K_RUNNER;
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.K_SCENARIO;
+import static tools.ds.modkit.util.KeyFunctions.getPickleKey;
 import static tools.ds.modkit.util.Reflect.*;
+import static tools.ds.modkit.util.TableUtils.exampleHeaderValueMap;
 
 public final class ScenarioState {
 
+    private Map<String, NodeMap> scenarioMaps = new HashMap<>();
+
+    public NodeMap upScenarioMap(Pickle pickle) {
+        System.out.println("@@upScenarioMap " + getPickleKey(pickle));
+        return scenarioMaps.computeIfAbsent(getPickleKey(pickle) ,  k -> {
+            LinkedListMultimap<String, String> map = exampleHeaderValueMap(pickle);
+            if(map == null) return null;
+            return new NodeMap(map);
+        });
+    }
 
     public StepExtension getCurrentStep() {
         return currentStep;

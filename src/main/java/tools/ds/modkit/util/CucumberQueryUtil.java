@@ -117,7 +117,7 @@ public final class CucumberQueryUtil {
     }
 
     // Pull the private field `pickle` (messages Pickle) off GherkinMessagesPickle
-    private static io.cucumber.messages.types.Pickle messagePickle(Object gmPickle) {
+    static io.cucumber.messages.types.Pickle messagePickle(Object gmPickle) {
         requireType(gmPickle, FQ_GMPICKLE, "gmPickle");
         Object p = getDirectProperty(gmPickle, "pickle"); // private field
         if (!(p instanceof io.cucumber.messages.types.Pickle)) {

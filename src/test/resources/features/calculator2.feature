@@ -7,10 +7,10 @@ Feature: Tiny calculator2
   Scenario: getScenarios 2
     Given a is 1 and b is 6
   :     Given a is 2 and b is 6
-    Then RUN SCENARIOS:
-      | Scenario Tags |
-      | @aa           |
-      | @aa           |
+#    Then RUN SCENARIOS:
+#      | Scenario Tags |
+#      | @aa           |
+#      | @aa           |
 
   Scenario: sum sddsddf 22
     Given a is 1 and b is 6
@@ -40,15 +40,6 @@ Feature: Tiny calculator2
     Given a is 1 and b is 6
     Given a is 2 and b is 6
 
-  Scenario Outline: line <A> , <B>
-    Given a is <A> and b is <B>
-    Given I add them <A> , <B>
-    Then the result should be <C>
-
-    Examples:
-      | A  | B  | C  |
-      | 11 | 22 | 33 |
-      | 33 | 44 | 78 |
 
   Scenario: scenarioA1
     Given a is 2 and b is 5

@@ -1,44 +1,101 @@
 package tools.ds.modkit.mappings;
 
+import com.google.common.collect.LinkedListMultimap;
+
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static tools.ds.modkit.mappings.AviatorUtil.eval;
 import static tools.ds.modkit.mappings.AviatorUtil.evalToBoolean;
-import static tools.ds.modkit.mappings.GlobalMappings.GLOBALS;
 import static tools.ds.modkit.mappings.KeyParser.Kind.SINGLE;
 import static tools.ds.modkit.mappings.KeyParser.parseKey;
-
-import java.util.*;
-import java.util.regex.*;
 
 
 public abstract class MappingProcessor implements Map<String, Object> {
 
 
-    protected final LinkedHashMap<String, NodeMap> maps = new LinkedHashMap<>();
+    private final LinkedListMultimap<String, NodeMap> maps = LinkedListMultimap.create();
+    private final List<String> keyOrder;
+
+    public MappingProcessor(String... keys) {
+        // Defensive copy to make key order immutable
+        this.keyOrder = Collections.unmodifiableList(new ArrayList<>(Arrays.asList(keys)));
+    }
+
+    public void addEntries(String key, NodeMap... values) {
+        if (!keyOrder.contains(key)) {
+            throw new IllegalArgumentException("Key not part of initial key order: " + key);
+        }
+        for (NodeMap v : values) {
+            maps.put(key, v);
+        }
+    }
+
+    public void OverWriteEntries(String key, NodeMap... values) {
+        if (!keyOrder.contains(key)) {
+            throw new IllegalArgumentException("Key not part of initial key order: " + key);
+        }
+        maps.removeAll(key);
+        for (NodeMap v : values) {
+            maps.put(key, v);
+        }
+    }
+
+    public void clearEntry(String key) {
+        if (!keyOrder.contains(key)) {
+            throw new IllegalArgumentException("Key not part of initial key order: " + key);
+        }
+        maps.removeAll(key);
+    }
+
+    /**
+     * Get a flat list of values, grouped and ordered by the original key order
+     */
+    public List<NodeMap> valuesInKeyOrder() {
+        List<NodeMap> out = new ArrayList<>();
+        for (String key : keyOrder) {
+            out.addAll(maps.get(key)); // maps.get() is live, but empty if unused
+        }
+        return out;
+    }
+
+
+    /**
+     * Expose immutable key order (for debugging/inspection)
+     */
+    public List<String> keyOrder() {
+        return keyOrder;
+    }
 
 
     private static final Pattern ANGLE = Pattern.compile("<([^<>{}]+)>");
     private static final Pattern CURLY = Pattern.compile("\\{([^{}]+)\\}");
 
 
-    public void put(int index, Object key, Object value) {
-        maps.get(index).put(key, value);
-    }
+//    public void put(int index, Object key, Object value) {
+//        maps.get(index).put(key, value);
+//    }
 
 
     public String resolveWholeText(String input) {
-
+        System.out.println("@@resolveWholeText: " + input);
         QuoteParser parsedObj = new QuoteParser(input);
+        System.out.println("@@parsedObj: " + parsedObj);
+        System.out.println("@@resolveAll(parsedObj.masked(): " + resolveAll(parsedObj.masked()));
         parsedObj.setMasked(resolveAll(parsedObj.masked()));
         for (var e : parsedObj.entrySet()) {
+            System.out.println("@@e: " + e);
             char q = parsedObj.quoteTypeOf(e.getKey());
+            System.out.println("@@q: " + q);
             if (q == QuoteParser.SINGLE || q == QuoteParser.DOUBLE) {
+                System.out.println("@@e.getKey(): " + e.getKey());
+                System.out.println("@@e.getValue(): " + e.getValue());
+                System.out.println("@@resolveAll(e.getValue()): " + resolveAll(e.getValue()));
                 parsedObj.put(e.getKey(), resolveAll(e.getValue()));
             }
         }
+        System.out.println("@@parsedObj.restore(): " + parsedObj.restore());
         return parsedObj.restore();
     }
 
@@ -59,22 +116,27 @@ public abstract class MappingProcessor implements Map<String, Object> {
     }
 
     private String resolveByMap(String s) {
+        System.out.println("@@resolveByMap: " + s);
         Matcher m = ANGLE.matcher(s);
         StringBuffer sb = new StringBuffer();
-        String replacement = null;
+        Object replacement = null;
         while (m.find()) {
             KeyParser.KeyParse keys = parseKey(m.group(1));
 
-            for (NodeMap map : maps.values()) {
+            for (NodeMap map : valuesInKeyOrder()) {
+                if (map == null) continue;
                 List<Object> list = map.getAsList(keys.base(), keys.intList());
+                System.out.println("@@list?? : " + list);
                 if (list.isEmpty()) continue;
-                replacement = keys.kind().equals(SINGLE) ? String.valueOf(list.getFirst()) : String.valueOf(list);
-                break;
+                replacement = keys.kind().equals(SINGLE) ? list.getFirst() : list;
+                System.out.println("@@replacement?? : " + replacement);
+                if (replacement != null)
+                    break;
             }
             if (replacement != null) break;
         }
 
-        m.appendReplacement(sb, replacement == null ? m.group(0) : replacement);
+        m.appendReplacement(sb, replacement == null ? m.group(0) : String.valueOf(replacement));
 
         m.appendTail(sb);
         return sb.toString();

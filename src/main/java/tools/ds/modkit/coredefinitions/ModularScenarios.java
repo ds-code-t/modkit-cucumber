@@ -16,6 +16,7 @@ import java.util.Map;
 import static tools.ds.modkit.executions.StepExecution.setNesting;
 import static tools.ds.modkit.modularexecutions.CucumberScanUtil.listPickles;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
+import static tools.ds.modkit.util.CucumberQueryUtil.examplesOf;
 import static tools.ds.modkit.util.stepbuilder.StepUtilities.createPickleStepTestStep;
 
 public class ModularScenarios {
@@ -41,8 +42,10 @@ public class ModularScenarios {
             nestingMap.put(startingNestingLevel-1, currentStep);
             StepExecution stepExecution = getScenarioState().stepExecution;
             for (Pickle pickle : pickles) {
+                System.out.println("@@getExamplesLocation: " + pickle.getLocation().getLine());
+                System.out.println("@@examples: " + examplesOf(pickle));
                 System.out.println("@@pickle name: " + pickle.getName());
-                List<StepExtension> stepExtensions = pickle.getSteps().stream().map(s -> new StepExtension(createPickleStepTestStep(s, bus.generateId(), pickle.getUri()), stepExecution)).toList();
+                List<StepExtension> stepExtensions = pickle.getSteps().stream().map(s -> new StepExtension(createPickleStepTestStep(s, bus.generateId(), pickle.getUri()), stepExecution, pickle)).toList();
 //                stepExtensions.forEach(s -> s.parentStep = currentStep);
                 System.out.println("@@stepExtensions.size : " + stepExtensions.size());
 //                currentStep.childSteps.addAll(stepExtensions);

@@ -39,7 +39,7 @@ import static tools.ds.modkit.mappings.KeyParser.Kind.LIST;
  * (no creation); returns null if missing/out-of-range.
  * Wildcards / deep-scan: tolerant list (returns [] on no matches).
  * <p>
- * - Guava support: registers GuavaModule so Guava types (e.g. ArrayListMultimap) convert to queryable JSON.
+ * - Guava support: registers GuavaModule so Guava types (e.g. LinkedListMultimap) convert to queryable JSON.
  * - POJO sidecar: custom Java objects are stored as JSON in-tree (queryable) and also recorded in a sidecar
  * (pointer -> POJONode) for retrieval of the original instance via getPojo(...).
  */
@@ -47,7 +47,7 @@ public class NodeMap {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     static {
-        // Enable Guava → JSON conversions (e.g., ArrayListMultimap becomes a map of arrays)
+        // Enable Guava → JSON conversions (e.g., LinkedListMultimap becomes a map of arrays)
         MAPPER.registerModule(new GuavaModule());
     }
 
@@ -738,8 +738,8 @@ public class NodeMap {
         System.out.println("get nums.arrayB -> " + map.get("nums.arrayB")); // "EEE" (last element)
         System.out.println("get $.nums[-1].arrayB[*] -> " + map.get("$.nums[-1].arrayB[*]"));
 
-        System.out.println("\n=== E) Guava ArrayListMultimap is queryable ===");
-        com.google.common.collect.ArrayListMultimap<String, String> mm = com.google.common.collect.ArrayListMultimap.create();
+        System.out.println("\n=== E) Guava LinkedListMultimap is queryable ===");
+        com.google.common.collect.LinkedListMultimap<String, String> mm = com.google.common.collect.LinkedListMultimap.create();
         mm.put("color", "red");
         mm.put("color", "blue");
         map.put("mm.prop", mm);

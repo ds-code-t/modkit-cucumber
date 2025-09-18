@@ -1,14 +1,16 @@
 package tools.ds.modkit.extensions;
 
+import com.google.common.collect.LinkedListMultimap;
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
+import io.cucumber.datatable.DataTable;
 import io.cucumber.gherkin.GherkinDialects;
 import io.cucumber.messages.types.PickleStep;
 import io.cucumber.messages.types.PickleStepArgument;
 import io.cucumber.plugin.event.*;
 import tools.ds.modkit.executions.StepExecution;
+import tools.ds.modkit.mappings.NodeMap;
 import tools.ds.modkit.mappings.ParsingMap;
-import tools.ds.modkit.mappings.StepMap;
 import tools.ds.modkit.status.SoftException;
 import tools.ds.modkit.status.SoftRuntimeException;
 import tools.ds.modkit.util.PickleStepArgUtils;
@@ -23,23 +25,19 @@ import java.util.stream.Collectors;
 
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.metaFlag;
 import static tools.ds.modkit.extensions.StepExtension.StepFlag.*;
+import static tools.ds.modkit.mappings.ParsingMap.scenarioMapKey;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.util.ExecutionModes.RUN;
 import static tools.ds.modkit.util.ExecutionModes.SKIP;
+import static tools.ds.modkit.util.KeyFunctions.getPickleKey;
 import static tools.ds.modkit.util.KeyFunctions.getUniqueKey;
 import static tools.ds.modkit.util.Reflect.getProperty;
 import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
-//import static tools.ds.modkit.util.stepbuilder.GherkinMessagesStepBuilder.cloneWithPickleStep;
+import static tools.ds.modkit.util.TableUtils.exampleHeaderValueMap;
 import static tools.ds.modkit.util.stepbuilder.StepUtilities.getDefinition;
 
 public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.event.Step {
 
-    public StepMap getStepMap() {
-        return stepMap;
-    }
-
-
-    private StepMap stepMap;
 
     private boolean templateStep = true;
 
@@ -48,6 +46,13 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     public final io.cucumber.core.gherkin.Step gherikinMessageStep;
     public final String rootText;
     public final String metaData;
+
+
+    public final io.cucumber.core.gherkin.Pickle parentPickle;
+//    public final String pickleKey;
+
+    private DataTable stepDataTable;
+    private List<NodeMap> scenarioMaps = new ArrayList<>();
 
     public int getNestingLevel() {
         return nestingLevel;
@@ -107,13 +112,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
     public void setExecutionArguments(List<Object> executionArguments) {
         this.executionArguments = executionArguments;
-        this.stepMap = new StepMap(executionArguments);
-//        DataTable table = executionArguments.stream()
-//                .filter(DataTable.class::isInstance)
-//                .map(DataTable.class::cast)
-//                .findFirst()
-//                .orElse(null);
-//        System.out.println("@@table: " + table);
+        this.stepDataTable = executionArguments.stream().filter(DataTable.class::isInstance).map(DataTable.class::cast).findFirst().orElse(null);
     }
 
     private List<Object> executionArguments;
@@ -122,7 +121,11 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     private static final Pattern pattern = Pattern.compile("@\\[([^\\[\\]]+)\\]");
 
 
-    public StepExtension(PickleStepTestStep step, StepExecution stepExecution) {
+    public StepExtension(PickleStepTestStep step, StepExecution stepExecution,
+                         io.cucumber.core.gherkin.Pickle pickle) {
+        this.parentPickle = pickle;
+
+//        this.pickleKey = getPickleKey(pickle);
         this.stepExecution = stepExecution;
         this.delegate = step;
         this.gherikinMessageStep = (io.cucumber.core.gherkin.Step) getProperty(delegate, "step");
@@ -148,12 +151,19 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     }
 
     public StepExtension updateStep(ParsingMap parsingMap) {
+        NodeMap scenarioMap = getScenarioState().upScenarioMap(parentPickle);
+        if(scenarioMap !=null)
+            scenarioMaps.add(scenarioMap);
+        System.out.println("@@@::scenarioMap: "+ scenarioMap);
+        System.out.println("@@@::scenarioMap get(\"A\") "+ scenarioMap.get("A"));
+        parsingMap.addEntries(scenarioMapKey , scenarioMaps.toArray(new NodeMap[0]));
+        System.out.println("@@parsingMap: " + parsingMap.get("A"));
+//        getScenarioState().upScenarioMap(parentPickle);
         PickleStepArgument argument = rootStep.getArgument().orElse(null);
         System.out.println("@@==argument: " + argument);
         UnaryOperator<String> external = parsingMap::resolveWholeText;
         PickleStepArgument newPickleStepArgument = PickleStepArgUtils.transformPickleArgument(argument, external);
         PickleStep pickleStep = new PickleStep(newPickleStepArgument, rootStep.getAstNodeIds(), rootStep.getId(), rootStep.getType().orElse(null), parsingMap.resolveWholeText(rootStep.getText()));
-//        io.cucumber.core.gherkin.messages.GherkinMessagesStep
         io.cucumber.core.gherkin.Step newGherikinMessageStep = (io.cucumber.core.gherkin.Step) Reflect.newInstance(
                 "io.cucumber.core.gherkin.messages.GherkinMessagesStep",
                 pickleStep,
@@ -172,7 +182,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
                 getUri(),                // java.net.URI
                 newGherikinMessageStep,        // io.cucumber.core.gherkin.Step (public)
                 pickleStepDefinitionMatch            // io.cucumber.core.runner.PickleStepDefinitionMatch (package-private instance is fine)
-        ), stepExecution);
+        ), stepExecution, parentPickle);
 
         newStep.childSteps.addAll(childSteps);
         newStep.parentStep = parentStep;
@@ -236,9 +246,9 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         System.out.println("\n\n===\n@@Step- " + getStepText());
         System.out.println("@@REsults- " + result);
 
-        if (result.getStatus().equals(Status.FAILED)) {
-
+        if (result.getStatus().equals(Status.FAILED) || result.getStatus().equals(Status.UNDEFINED)) {
             Throwable throwable = result.getError();
+            System.out.println("@@throwable: " + throwable);
             if (throwable != null && (throwable.getClass().equals(SoftException.class) || throwable.getClass().equals(SoftRuntimeException.class)))
                 setSoftFail();
             else

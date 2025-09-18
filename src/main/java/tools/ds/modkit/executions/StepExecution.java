@@ -42,7 +42,7 @@ public class StepExecution {
         System.out.println("@@StepExecutions:");
         List<PickleStepTestStep> pSteps = (List<PickleStepTestStep>) getProperty(testCase, "testSteps");
         setFlag(pSteps.get(pSteps.size() - 1), ObjDataRegistry.ObjFlags.LAST);
-        pSteps.forEach(step -> steps.add(new StepExtension(step, this)));
+        pSteps.forEach(step -> steps.add(new StepExtension(step, this, getScenarioState().scenarioPickle)));
         System.out.println("@@pSteps: " + pSteps.size());
 
 //        int size = steps.size();

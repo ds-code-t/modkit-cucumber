@@ -56,6 +56,14 @@ public class StepDefs {
     }
 
 
+    @Given("the string {string} is attached as {string}")
+    public void checkstring(String a, String b) throws InterruptedException {
+        Thread.sleep(500L);
+        System.out.println("@@a_is_and_b_is");
+        System.out.println("@@a: " + a);
+        System.out.println("@@b: " + b);
+    }
+
     @Given("a is {int} and b is {int}")
     public void a_is_and_b_is(int a, int b) throws InterruptedException {
         Thread.sleep(500L);
