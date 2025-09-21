@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.*;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import com.google.common.collect.LinkedListMultimap;
 import com.jayway.jsonpath.*;
 
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
@@ -60,8 +61,13 @@ public class NodeMap {
         multi = MAPPER.createObjectNode();
     }
 
-    public NodeMap(Object object) {
-        multi = MAPPER.valueToTree(object);
+    public NodeMap(Object obj) {
+        if (obj instanceof Map<?, ?> map) {
+            LinkedListMultimap<Object, Object> mm = LinkedListMultimap.create();
+            map.forEach((k, v) -> mm.put(k, v));
+            multi = MAPPER.valueToTree(mm);
+        } else
+            multi = MAPPER.valueToTree(obj);
     }
 
     // JsonPath configs
@@ -219,20 +225,17 @@ public class NodeMap {
 
     public ArrayNode get(Object key) {
         final String raw = String.valueOf(key).trim();
-
         // "name" → latest entry of top-level array (scalar/object) ⇒ wrap as [value]
         if (isSimpleTopName(raw)) {
             JsonNode n = readScalar("$." + raw + "[-1]");
             return toArrayNode(n);
         }
-
         // "name[idx]" → that top-level index (scalar/object) ⇒ wrap as [value]
         TopRef tr = parseTopRef(raw);
         if (tr != null && tr.idx != null) {
             JsonNode n = readScalar("$." + tr.top + "[" + tr.idx + "]");
             return toArrayNode(n);
         }
-
         String jp = ensureJsonPath(raw);
 
         // Direct (no wildcards / deep-scan) → resolve concrete path and read scalar/object/array
@@ -251,7 +254,6 @@ public class NodeMap {
             }
             // NOT_APPLICABLE → fall through
         }
-
         // Wildcards / deep-scan (tolerant) already produce a List ⇒ ArrayNode
         Object result = JsonPath.using(TOLERANT_LIST_CFG).parse(multi).read(jp);
         JsonNode n = MAPPER.valueToTree(result);

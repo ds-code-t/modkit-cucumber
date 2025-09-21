@@ -3,13 +3,10 @@ package tools.ds.modkit.executions;
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
 import io.cucumber.plugin.event.PickleStepTestStep;
-import io.cucumber.plugin.event.Status;
 import io.cucumber.plugin.event.TestCase;
 import tools.ds.modkit.extensions.StepExtension;
-import tools.ds.modkit.mappings.ParsingMap;
+import tools.ds.modkit.mappings.NodeMap;
 import tools.ds.modkit.state.ScenarioState;
-import tools.ds.modkit.status.SoftException;
-import tools.ds.modkit.status.SoftRuntimeException;
 import tools.ds.modkit.trace.ObjDataRegistry;
 
 import java.util.ArrayList;
@@ -22,7 +19,6 @@ import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.trace.ObjDataRegistry.setFlag;
 import static tools.ds.modkit.util.ExecutionModes.RUN;
 import static tools.ds.modkit.util.Reflect.getProperty;
-import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 
 
 public class StepExecution {
@@ -42,43 +38,17 @@ public class StepExecution {
         System.out.println("@@StepExecutions:");
         List<PickleStepTestStep> pSteps = (List<PickleStepTestStep>) getProperty(testCase, "testSteps");
         setFlag(pSteps.get(pSteps.size() - 1), ObjDataRegistry.ObjFlags.LAST);
-        pSteps.forEach(step -> steps.add(new StepExtension(step, this, getScenarioState().scenarioPickle)));
-        System.out.println("@@pSteps: " + pSteps.size());
 
-//        int size = steps.size();
-//
-//
-//        Map<Integer, StepExtension> nestingMap = new HashMap<>();
-//
-//        int lastNestingLevel = 0;
-//
-//
-//        for (int s = 0; s < size; s++) {
-//            StepExtension currentStep = steps.get(s);
-//            int currentNesting = currentStep.nestingLevel;
-//
-//
-//            StepExtension parentStep = nestingMap.get(currentNesting - 1);
-//
-//
-//            StepExtension previousSibling = currentNesting > lastNestingLevel ? null : nestingMap.get(currentNesting);
-//
-//            if (previousSibling != null) {
-//                previousSibling.nextSibling = currentStep;
-//                currentStep.previousSibling = previousSibling;
-//            }
-//            if (parentStep != null) {
-//                currentStep.parentStep = parentStep;
-//                parentStep.childSteps.add(currentStep);
-//            }
-//            System.out.println("@@000 currentStep: " + currentStep.getStepText());
-//            System.out.println("@@000 parentStep: " + (parentStep == null ? "END" : parentStep.getStepText()));
-//
-//            nestingMap.put(currentNesting, currentStep);
-////            System.out.println("@@000 previousSibling: " + (previousSibling == null || previousSibling.nextSibling == null ? "END" : previousSibling.nextSibling.getStepText()));
-//            lastNestingLevel = currentNesting;
-//
-//        }
+        pSteps.forEach(step -> steps.add(new StepExtension(step, this, getScenarioState().scenarioPickle)));
+        ScenarioState scenarioState = getScenarioState();
+        NodeMap scenarioMap = scenarioState.getScenarioMap(scenarioState.getScenarioPickle());
+        if (scenarioMap != null)
+            steps.forEach(s -> s.addScenarioMaps(scenarioMap));
+        if (scenarioMap != null)
+            System.out.println("@@scenarioMap a1: " + scenarioMap.get("A"));
+        System.out.println("@@pSteps: " + pSteps.size());
+        System.out.println("@@pStep getStepText: " + steps.getFirst().getStepText());
+
         Map<Integer, StepExtension> nestingMap = new HashMap<>();
         setNesting(steps, 0, nestingMap);
     }
@@ -136,13 +106,16 @@ public class StepExecution {
     public boolean isScenarioHardFail() {
         return scenarioHardFail;
     }
+
     public boolean isScenarioSoftFail() {
         return scenarioSoftFail;
     }
+
     public void setScenarioHardFail() {
         this.scenarioHardFail = true;
         setScenarioComplete();
     }
+
     public void setScenarioSoftFail() {
         this.scenarioSoftFail = true;
     }
@@ -150,6 +123,7 @@ public class StepExecution {
     public void setScenarioComplete() {
         this.scenarioComplete = true;
     }
+
     public boolean isScenarioComplete() {
         return this.scenarioComplete;
     }
@@ -167,7 +141,6 @@ public class StepExecution {
         System.out.println("\n@@getRuntime(): " + getRuntime());
 
         System.out.println("\n@@getFeatureSupplier(): " + getFeatureSupplier());
-
 
 
         setFlag(testCase, ObjDataRegistry.ObjFlags.RUNNING);

@@ -27,7 +27,7 @@ public final class ScenarioState {
 
     private Map<String, NodeMap> scenarioMaps = new HashMap<>();
 
-    public NodeMap upScenarioMap(Pickle pickle) {
+    public NodeMap getScenarioMap(Pickle pickle) {
         System.out.println("@@upScenarioMap " + getPickleKey(pickle));
         return scenarioMaps.computeIfAbsent(getPickleKey(pickle) ,  k -> {
             LinkedListMultimap<String, String> map = exampleHeaderValueMap(pickle);

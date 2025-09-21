@@ -1,6 +1,5 @@
 package tools.ds.modkit.extensions;
 
-import com.google.common.collect.LinkedListMultimap;
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
 import io.cucumber.datatable.DataTable;
@@ -29,11 +28,9 @@ import static tools.ds.modkit.mappings.ParsingMap.scenarioMapKey;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.util.ExecutionModes.RUN;
 import static tools.ds.modkit.util.ExecutionModes.SKIP;
-import static tools.ds.modkit.util.KeyFunctions.getPickleKey;
 import static tools.ds.modkit.util.KeyFunctions.getUniqueKey;
 import static tools.ds.modkit.util.Reflect.getProperty;
 import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
-import static tools.ds.modkit.util.TableUtils.exampleHeaderValueMap;
 import static tools.ds.modkit.util.stepbuilder.StepUtilities.getDefinition;
 
 public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.event.Step {
@@ -52,6 +49,29 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 //    public final String pickleKey;
 
     private DataTable stepDataTable;
+
+//    public void addScenarioMaps(NodeMap nodeMap) {
+//        this.scenarioMaps.add(nodeMap);
+//    }
+
+    public void addScenarioMaps(NodeMap... nodes) {
+        for (NodeMap node : nodes) {
+            if (node != null) {
+                this.scenarioMaps.add(node);
+            }
+        }
+    }
+
+
+    public void addFirstScenarioMaps(NodeMap... nodes) {
+        for (NodeMap node : nodes) {
+            if (node != null) {
+                this.scenarioMaps.addFirst(node);
+            }
+        }
+    }
+
+
     private List<NodeMap> scenarioMaps = new ArrayList<>();
 
     public int getNestingLevel() {
@@ -151,13 +171,17 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     }
 
     public StepExtension updateStep(ParsingMap parsingMap) {
-        NodeMap scenarioMap = getScenarioState().upScenarioMap(parentPickle);
-        if(scenarioMap !=null)
-            scenarioMaps.add(scenarioMap);
-        System.out.println("@@@::scenarioMap: "+ scenarioMap);
-        System.out.println("@@@::scenarioMap get(\"A\") "+ scenarioMap.get("A"));
-        parsingMap.addEntries(scenarioMapKey , scenarioMaps.toArray(new NodeMap[0]));
-        System.out.println("@@parsingMap: " + parsingMap.get("A"));
+//        NodeMap scenarioMap = getScenarioState().upScenarioMap(parentPickle);
+//        if(scenarioMap !=null)
+//            scenarioMaps.add(scenarioMap);
+//        System.out.println("@@@::scenarioMap: "+ scenarioMap);
+//        System.out.println("@@@::scenarioMap get(\"A\") "+ scenarioMap.get("A"));
+//        parsingMap.overWriteEntries(scenarioMapKey , scenarioMaps.toArray(new NodeMap[0]));
+        System.out.println("@@@::scenarioMap get1 " + scenarioMaps.get(0).get("A"));
+        if (scenarioMaps.size() > 1)
+            System.out.println("@@@::scenarioMap get2 " + scenarioMaps.get(1).get("A"));
+        parsingMap.overWriteEntries(scenarioMapKey, scenarioMaps.toArray(new NodeMap[0]));
+        System.out.println("@@parsingMap-resolveWholeText: " + parsingMap.resolveWholeText(rootStep.getText()));
 //        getScenarioState().upScenarioMap(parentPickle);
         PickleStepArgument argument = rootStep.getArgument().orElse(null);
         System.out.println("@@==argument: " + argument);
@@ -185,6 +209,8 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         ), stepExecution, parentPickle);
 
         newStep.childSteps.addAll(childSteps);
+        System.out.println("@@update scenarioMaps: " + scenarioMaps);
+        newStep.scenarioMaps.addAll(scenarioMaps);
         newStep.parentStep = parentStep;
         newStep.previousSibling = previousSibling;
         newStep.nextSibling = nextSibling;

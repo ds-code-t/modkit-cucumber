@@ -32,7 +32,7 @@ public abstract class MappingProcessor implements Map<String, Object> {
         }
     }
 
-    public void OverWriteEntries(String key, NodeMap... values) {
+    public void overWriteEntries(String key, NodeMap... values) {
         if (!keyOrder.contains(key)) {
             throw new IllegalArgumentException("Key not part of initial key order: " + key);
         }
@@ -79,23 +79,14 @@ public abstract class MappingProcessor implements Map<String, Object> {
 
 
     public String resolveWholeText(String input) {
-        System.out.println("@@resolveWholeText: " + input);
         QuoteParser parsedObj = new QuoteParser(input);
-        System.out.println("@@parsedObj: " + parsedObj);
-        System.out.println("@@resolveAll(parsedObj.masked(): " + resolveAll(parsedObj.masked()));
         parsedObj.setMasked(resolveAll(parsedObj.masked()));
         for (var e : parsedObj.entrySet()) {
-            System.out.println("@@e: " + e);
             char q = parsedObj.quoteTypeOf(e.getKey());
-            System.out.println("@@q: " + q);
             if (q == QuoteParser.SINGLE || q == QuoteParser.DOUBLE) {
-                System.out.println("@@e.getKey(): " + e.getKey());
-                System.out.println("@@e.getValue(): " + e.getValue());
-                System.out.println("@@resolveAll(e.getValue()): " + resolveAll(e.getValue()));
                 parsedObj.put(e.getKey(), resolveAll(e.getValue()));
             }
         }
-        System.out.println("@@parsedObj.restore(): " + parsedObj.restore());
         return parsedObj.restore();
     }
 
@@ -116,7 +107,6 @@ public abstract class MappingProcessor implements Map<String, Object> {
     }
 
     private String resolveByMap(String s) {
-        System.out.println("@@resolveByMap: " + s);
         Matcher m = ANGLE.matcher(s);
         StringBuffer sb = new StringBuffer();
         Object replacement = null;
@@ -126,17 +116,18 @@ public abstract class MappingProcessor implements Map<String, Object> {
             for (NodeMap map : valuesInKeyOrder()) {
                 if (map == null) continue;
                 List<Object> list = map.getAsList(keys.base(), keys.intList());
-                System.out.println("@@list?? : " + list);
                 if (list.isEmpty()) continue;
                 replacement = keys.kind().equals(SINGLE) ? list.getFirst() : list;
-                System.out.println("@@replacement?? : " + replacement);
                 if (replacement != null)
                     break;
             }
             if (replacement != null) break;
         }
 
-        m.appendReplacement(sb, replacement == null ? m.group(0) : String.valueOf(replacement));
+        if(replacement == null)
+            return s;
+
+        m.appendReplacement(sb, String.valueOf(replacement));
 
         m.appendTail(sb);
         return sb.toString();

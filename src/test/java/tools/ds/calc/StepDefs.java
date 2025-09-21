@@ -74,6 +74,11 @@ public class StepDefs {
             throw new RuntimeException("Ss");
     }
 
+    @Given("^stringCheck (.*)$")
+    public void stringCheck(String string)  {
+        System.out.println("@@String check: " + string);
+    }
+
     @When("^I add them (.*)$")
     public void i_add_them(String string) {
         System.out.println("@@i_add_them: " + string);
