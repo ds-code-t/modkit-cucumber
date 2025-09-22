@@ -1,13 +1,11 @@
 package tools.ds.modkit.blackbox;
 
-import io.cucumber.plugin.event.TestCase;
+import io.cucumber.plugin.event.PickleStepTestStep;
+import tools.ds.modkit.extensions.StepExtension;
 import tools.ds.modkit.util.CallScope;
-import tools.ds.modkit.util.Reflect;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,6 +43,8 @@ public final class BlackBoxBootstrap {
 //            Pattern.MULTILINE
     );
 
+    public final static UUID skipLogging = new java.util.UUID(0L, 0xFFL);
+
     public static void register() {
         System.out.println("@@register DSL");
 
@@ -66,6 +66,40 @@ public final class BlackBoxBootstrap {
                         K_FEATUREPARSER,
                         K_FEATURESUPPLIER
                 )
+        );
+
+
+        // Skip TestCase.emitTestCaseStarted(..) when executionId matches a configured UUID
+
+        Registry.register(
+                on("io.cucumber.core.runner.TestCase", "emitTestCaseStarted", 3)
+                        .around(
+                                args -> {
+                                    StepExtension step = getScenarioState().getCurrentStep();
+
+
+//                                    System.out.println("@@$$step: " + step.getId());
+                                    return step!=null && step.getId().equals(skipLogging); // bypass original
+
+                                },
+                                args -> null // void method → return null when bypassing
+                        )
+                        .build()
+        );
+
+// Skip TestCase.emitTestCaseFinished(..) when executionId matches a configured UUID
+        Registry.register(
+                on("io.cucumber.core.runner.TestCase", "emitTestCaseFinished", 4)
+                        .around(
+                                args -> {
+                                    StepExtension step = getScenarioState().getCurrentStep();
+
+                                    return step!=null &&  step.getId().equals(skipLogging); // bypass original
+
+                                },
+                                args -> null // void
+                        )
+                        .build()
         );
 
 
@@ -115,7 +149,7 @@ public final class BlackBoxBootstrap {
         Registry.register(
                 on("io.cucumber.plugin.event.TestStepStarted", "getTestStep", 0)
                         .returns("io.cucumber.plugin.event.TestStep")
-                        .after((args, ret, thr) -> getScenarioState().get(getUniqueKey(((io.cucumber.plugin.event.PickleStepTestStep) ret))))
+                        .after((args, ret, thr) -> getScenarioState().getInstance(getUniqueKey(((io.cucumber.plugin.event.PickleStepTestStep) ret))))
                         .build()
         );
 
@@ -123,7 +157,7 @@ public final class BlackBoxBootstrap {
         Registry.register(
                 on("io.cucumber.plugin.event.TestStepFinished", "getTestStep", 0)
                         .returns("io.cucumber.plugin.event.TestStep")
-                        .after((args, ret, thr) -> getScenarioState().get(getUniqueKey(((io.cucumber.plugin.event.PickleStepTestStep) ret))))
+                        .after((args, ret, thr) -> getScenarioState().getInstance(getUniqueKey(((io.cucumber.plugin.event.PickleStepTestStep) ret))))
                         .build()
         );
 

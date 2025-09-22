@@ -28,13 +28,13 @@ public final class InstanceRegistry {
     /** Get untyped value from the current thread’s ScenarioState (null if none or missing). */
     public static Object get(Object key) {
         ScenarioState s = cur();
-        return (s == null) ? null : s.get(key);
+        return (s == null) ? null : s.getInstance(key);
     }
 
     /** Typed get from the current thread’s ScenarioState. */
     public static <T> Optional<T> get(Object key, Class<T> type) {
         ScenarioState s = cur();
-        return Optional.ofNullable(s == null ? null : s.get(key, type));
+        return Optional.ofNullable(s == null ? null : s.getInstance(key, type));
     }
 
     /** Remove a key from the current thread’s ScenarioState (no-op if none). */

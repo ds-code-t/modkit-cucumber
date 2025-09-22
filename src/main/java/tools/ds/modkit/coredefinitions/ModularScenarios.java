@@ -11,7 +11,9 @@ import tools.ds.modkit.mappings.NodeMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import static tools.ds.modkit.coredefinitions.MetaSteps.RUN_SCENARIO;
 import static tools.ds.modkit.executions.StepExecution.setNesting;
 import static tools.ds.modkit.modularexecutions.CucumberScanUtil.listPickles;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
@@ -22,7 +24,7 @@ public class ModularScenarios {
 
 
     @Given("RUN SCENARIOS:")
-    public void runScenarios(DataTable dataTable) {
+    public static void runScenarios(DataTable dataTable) {
         EventBus bus = getScenarioState().getBus();
         List<Map<String, String>> maps = dataTable.asMaps();
         Map<String, String> cucumberProps = new HashMap<>();
@@ -37,31 +39,27 @@ public class ModularScenarios {
             System.out.println("@@pickles size: " + pickles);
             StepExtension currentStep = getScenarioState().getCurrentStep();
             int startingNestingLevel = getScenarioState().getCurrentStep().getNestingLevel() + 1;
-            Map<Integer, StepExtension> nestingMap = new HashMap<>();
-            nestingMap.put(startingNestingLevel - 1, currentStep);
+
             StepExecution stepExecution = getScenarioState().stepExecution;
+            StepExtension currentScenarioNameStep;
+            StepExtension lastScenarioNameStep = null;
             for (Pickle pickle : pickles) {
-                System.out.println("@@getExamplesLocation: " + pickle.getLocation().getLine());
-                System.out.println("@@examples: " + examplesOf(pickle));
-                System.out.println("@@pickle name: " + pickle.getName());
-
-
+//                System.out.println("@@pickle: " + pickle.getName());
+                final String overRideStepText = RUN_SCENARIO + pickle.getName();
                 NodeMap scenarioMap = getScenarioState().getScenarioMap(pickle);
                 List<StepExtension> stepExtensions = pickle.getSteps().stream().map(s -> new StepExtension(createPickleStepTestStep(s, bus.generateId(), pickle.getUri()), stepExecution, pickle)).toList();
-//                stepExtensions.forEach(s -> s.parentStep = currentStep);
-                System.out.println("@@@java.util.Collections$UnmodifiableMap: " + map);
-                System.out.println("@@@java.util.Collections$UnmodifiableMap: " + map.getClass());
-                HashMap passedMap = new HashMap(map);
-                NodeMap nodeMap = new NodeMap(passedMap);
-                System.out.println("@@nodeMap.get A: " + nodeMap.getAsList("A"));
-                stepExtensions.forEach(s -> s.addScenarioMaps(new NodeMap(passedMap), scenarioMap));
+                currentScenarioNameStep = new StepExtension(currentStep.delegate, stepExecution, pickle, false, true, overRideStepText);
+//                stepExtensions.add(0, currentScenarioNameStep);
+                stepExtensions.forEach(s -> s.addScenarioMaps(new NodeMap(map), scenarioMap));
+                currentStep.addChildStep(currentScenarioNameStep);
 
-
-                System.out.println("@@stepExtensions.size : " + stepExtensions.size());
-//                currentStep.childSteps.addAll(stepExtensions);
-                System.out.println("@@currentStep- : " + currentStep.getStepText());
-                System.out.println("@@currentStep-childSteps : " + currentStep.getChildSteps());
-//                System.out.println("@@currentStep-childSteps1getStepText() : " + currentStep.getChildSteps().getFirst().getStepText());
+                if(lastScenarioNameStep != null) {
+                    lastScenarioNameStep.setNextSibling(currentScenarioNameStep);
+//                    currentScenarioNameStep.setPreviousSibling(lastScenarioNameStep);
+                }
+                lastScenarioNameStep = currentScenarioNameStep;
+                Map<Integer, StepExtension> nestingMap = new HashMap<>();
+                nestingMap.put(startingNestingLevel - 1, currentScenarioNameStep);
                 setNesting(stepExtensions, startingNestingLevel, nestingMap);
             }
         }

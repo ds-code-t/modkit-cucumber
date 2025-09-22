@@ -41,6 +41,9 @@ Feature: Tiny calculator
   @TagK @aa
   Scenario: scenarioA12
     Given stringCheck "1 d: <D>, a: <A> , c:<C>"
+    * DATA TABLE
+      | Scenario | A  | B   |
+      | 1        | 11 | 222 |
 #    Given stringCheck "1 d: s, a: a , cc"
 #  :    Given stringCheck "2 d: <D>, a: <A> , c:<C>"
 #  :: Given a is 2 and b is 3

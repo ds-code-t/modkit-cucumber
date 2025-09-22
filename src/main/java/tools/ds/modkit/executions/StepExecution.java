@@ -2,6 +2,7 @@ package tools.ds.modkit.executions;
 
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
+import io.cucumber.messages.types.Pickle;
 import io.cucumber.plugin.event.PickleStepTestStep;
 import io.cucumber.plugin.event.TestCase;
 import tools.ds.modkit.extensions.StepExtension;
@@ -14,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static tools.ds.modkit.coredefinitions.MetaSteps.RUN_SCENARIO;
 import static tools.ds.modkit.state.GlobalState.*;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.trace.ObjDataRegistry.setFlag;
@@ -34,12 +36,15 @@ public class StepExecution {
 //
 //    private boolean runComplete = false;
 
+    private final StepExtension rootScenarioNameStep;
+
     public StepExecution(TestCase testCase) {
         System.out.println("@@StepExecutions:");
         List<PickleStepTestStep> pSteps = (List<PickleStepTestStep>) getProperty(testCase, "testSteps");
         setFlag(pSteps.get(pSteps.size() - 1), ObjDataRegistry.ObjFlags.LAST);
 
-        pSteps.forEach(step -> steps.add(new StepExtension(step, this, getScenarioState().scenarioPickle)));
+        io.cucumber.core.gherkin.Pickle pickle = getScenarioState().scenarioPickle;
+        pSteps.forEach(step -> steps.add(new StepExtension(step, this, pickle)));
         ScenarioState scenarioState = getScenarioState();
         NodeMap scenarioMap = scenarioState.getScenarioMap(scenarioState.getScenarioPickle());
         if (scenarioMap != null)
@@ -49,7 +54,12 @@ public class StepExecution {
         System.out.println("@@pSteps: " + pSteps.size());
         System.out.println("@@pStep getStepText: " + steps.getFirst().getStepText());
 
+
         Map<Integer, StepExtension> nestingMap = new HashMap<>();
+
+        rootScenarioNameStep = new StepExtension(steps.getFirst().delegate, this, pickle, true, true, RUN_SCENARIO + pickle.getName());
+        nestingMap.put(-1, rootScenarioNameStep);
+
         setNesting(steps, 0, nestingMap);
     }
 
@@ -147,11 +157,14 @@ public class StepExecution {
 
         StepExtension currentStep = steps.get(0);
         System.out.println("@@### runsteps!! " + currentStep.getStepText());
-        ScenarioState scenarioState = getScenarioState();
-        while (currentStep != null) {
-            currentStep.run(testCase, bus, state, executionMode);
-            currentStep = currentStep.getNextSibling();
-        }
+
+        rootScenarioNameStep.run(testCase, bus, state, executionMode);
+
+//        ScenarioState scenarioState = getScenarioState();
+//        StepExtension lastExecuted = currentStep.run(testCase, bus, state, executionMode);
+//        while (currentStep != null) {
+//            currentStep = lastExecuted.runNextSibling();
+//        }
 
 
 //

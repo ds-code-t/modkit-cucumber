@@ -16,15 +16,21 @@ public class ParsingMap extends MappingProcessor {
 
 
 
-    public ParsingMap() {
+    public ParsingMap(NodeMap runMap) {
         super(overrideMapKey, scenarioMapKey, stepMapKey, runMapKey, globalMapKey, DefaultMapKey);
         addEntries(overrideMapKey, new NodeMap());
 //        maps.put(passedScenarioMap, null);
 //        maps.put(scenarioMap, null);
-        addEntries(runMapKey, new NodeMap());
+        addEntries(runMapKey, runMap);
         addEntries(globalMapKey, GLOBALS);
         addEntries(DefaultMapKey, new NodeMap());
     }
+
+
+
+
+
+
 
 
 

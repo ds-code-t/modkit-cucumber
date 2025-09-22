@@ -28,10 +28,9 @@ public final class ScenarioState {
     private Map<String, NodeMap> scenarioMaps = new HashMap<>();
 
     public NodeMap getScenarioMap(Pickle pickle) {
-        System.out.println("@@upScenarioMap " + getPickleKey(pickle));
-        return scenarioMaps.computeIfAbsent(getPickleKey(pickle) ,  k -> {
+        return scenarioMaps.computeIfAbsent(getPickleKey(pickle), k -> {
             LinkedListMultimap<String, String> map = exampleHeaderValueMap(pickle);
-            if(map == null) return null;
+            if (map == null) return null;
             return new NodeMap(map);
         });
     }
@@ -46,14 +45,26 @@ public final class ScenarioState {
 
     private StepExtension currentStep;
 
-    public ParsingMap getTestMap() {
-        return testMap;
+    public ParsingMap getParsingMap() {
+        return parsingMap;
     }
 
     // Canonical keys (unchanged)
-    private ParsingMap testMap = new ParsingMap();
+    private NodeMap runMap = new NodeMap();
 
+    public void put(Object key, Object value) {
+        runMap.put(key, value);
+    }
 
+    public Object get(Object key) {
+        return parsingMap.get(key);
+    }
+
+    public Object resolve(String key) {
+        return parsingMap.resolveWholeText(key);
+    }
+
+    private ParsingMap parsingMap = new ParsingMap(runMap);
 
 
     /**
@@ -183,11 +194,11 @@ public final class ScenarioState {
         }
     }
 
-    public Object get(Object key) {
+    public Object getInstance(Object key) {
         return (key == null) ? null : store.get(key);
     }
 
-    public <T> T get(Object key, Class<T> type) {
+    public <T> T getInstance(Object key, Class<T> type) {
         if (key == null || type == null) return null;
         Object v = store.get(key);
         return type.isInstance(v) ? type.cast(v) : null;
@@ -204,13 +215,13 @@ public final class ScenarioState {
     }
 
     public Object getScenario() {
-        return get(K_SCENARIO);
+        return getInstance(K_SCENARIO);
     }
 
     public Runner getRunner() {
         System.out.println("@@##$#$ store : " + store);
         if (runner == null)
-            return (Runner) get(K_RUNNER);
+            return (Runner) getInstance(K_RUNNER);
         return runner;
     }
 
@@ -241,7 +252,7 @@ public final class ScenarioState {
         return (io.cucumber.core.runner.Options) getProperty(getRunner(), "runnerOptions");
     }
 
-    public List<String> getTags(){
+    public List<String> getTags() {
         return CucumberTagUtils.extractTags(getRuntimeOptions());
     }
 

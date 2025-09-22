@@ -70,8 +70,10 @@ public class StepDefs {
         System.out.println("@@a_is_and_b_is");
         this.a = a;
         this.b = b;
-        if (a + b == 6)
+        if (a  == 22)
             throw new RuntimeException("Ss");
+        if (b  == 22)
+            throw new SoftRuntimeException("Ss");
     }
 
     @Given("^stringCheck (.*)$")

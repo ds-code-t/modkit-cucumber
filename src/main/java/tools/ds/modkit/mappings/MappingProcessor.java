@@ -112,19 +112,18 @@ public abstract class MappingProcessor implements Map<String, Object> {
         Object replacement = null;
         while (m.find()) {
             KeyParser.KeyParse keys = parseKey(m.group(1));
-
             for (NodeMap map : valuesInKeyOrder()) {
                 if (map == null) continue;
                 List<Object> list = map.getAsList(keys.base(), keys.intList());
                 if (list.isEmpty()) continue;
-                replacement = keys.kind().equals(SINGLE) ? list.getFirst() : list;
+                replacement = keys.kind().equals(SINGLE) ? list.getLast() : list;
                 if (replacement != null)
                     break;
             }
             if (replacement != null) break;
         }
 
-        if(replacement == null)
+        if (replacement == null)
             return s;
 
         m.appendReplacement(sb, String.valueOf(replacement));
@@ -152,7 +151,7 @@ public abstract class MappingProcessor implements Map<String, Object> {
         for (NodeMap map : maps.values()) {
             List<Object> list = map.getAsList(key, -1);
             if (list.isEmpty()) continue;
-            return list.getFirst();
+            return list.getLast();
         }
         return null;
     }
