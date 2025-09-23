@@ -1,5 +1,6 @@
 package tools.ds.modkit.mappings;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.collect.LinkedListMultimap;
 
 import java.util.*;
@@ -8,8 +9,8 @@ import java.util.regex.Pattern;
 
 import static tools.ds.modkit.mappings.AviatorUtil.eval;
 import static tools.ds.modkit.mappings.AviatorUtil.evalToBoolean;
-import static tools.ds.modkit.mappings.KeyParser.Kind.SINGLE;
-import static tools.ds.modkit.mappings.KeyParser.parseKey;
+//import static tools.ds.modkit.mappings.KeyParser.Kind.SINGLE;
+//import static tools.ds.modkit.mappings.KeyParser.parseKey;
 
 
 public abstract class MappingProcessor implements Map<String, Object> {
@@ -30,6 +31,14 @@ public abstract class MappingProcessor implements Map<String, Object> {
         for (NodeMap v : values) {
             maps.put(key, v);
         }
+    }
+
+    public void addEntriesToStart(String key, NodeMap... values) {
+        if (!keyOrder.contains(key)) {
+            throw new IllegalArgumentException("Key not part of initial key order: " + key);
+        }
+        if (values.length == 0) return;                // no-op
+        maps.get(key).addAll(0, List.of(values));      // insert at start in given order
     }
 
     public void overWriteEntries(String key, NodeMap... values) {
@@ -79,79 +88,117 @@ public abstract class MappingProcessor implements Map<String, Object> {
 
 
     public String resolveWholeText(String input) {
-        QuoteParser parsedObj = new QuoteParser(input);
-        parsedObj.setMasked(resolveAll(parsedObj.masked()));
-        for (var e : parsedObj.entrySet()) {
-            char q = parsedObj.quoteTypeOf(e.getKey());
-            if (q == QuoteParser.SINGLE || q == QuoteParser.DOUBLE) {
-                parsedObj.put(e.getKey(), resolveAll(e.getValue()));
+        System.out.println("@@===resolveWholeText: " + input);
+        try {
+            QuoteParser parsedObj = new QuoteParser(input);
+            parsedObj.setMasked(resolveAll(parsedObj.masked()));
+            System.out.println("@@===parsedObj: " + parsedObj);
+            for (var e : parsedObj.entrySet()) {
+                System.out.println("@@===e: " + e);
+                char q = parsedObj.quoteTypeOf(e.getKey());
+                System.out.println("@@===q: " + q);
+                if (q == QuoteParser.SINGLE || q == QuoteParser.DOUBLE) {
+                    parsedObj.put(e.getKey(), resolveAll(e.getValue()));
+                }
             }
+            return parsedObj.restore();
+        } catch (Throwable t) {
+            throw new RuntimeException("Could not resolve'" + input + "'", t);
         }
-        return parsedObj.restore();
     }
 
     public String resolveAll(String input) {
-        String prev;
-        do {
-            prev = input;
-            if (input.contains("<")) {
-                input = resolveByMap(input);
-            } else {
-                break;
-            }
-            if (input.contains("{")) {
-                input = resolveCurly(input);
-            }
-        } while (!input.equals(prev));
-        return input;
+        System.out.println("@@===resolveAll: " + input);
+        try {
+            String prev;
+            do {
+                prev = input;
+                if (input.contains("<")) {
+                    input = resolveByMap(input);
+                    System.out.println("@@=====3: "+ input);
+                } else {
+                    break;
+                }
+                if (input.contains("{")) {
+                    input = resolveCurly(input);
+                }
+            } while (!input.equals(prev));
+            return input;
+        } catch (Throwable t) {
+            throw new RuntimeException("Could not resolve'" + input + "'", t);
+        }
     }
 
+    private static final Pattern AS_TYPE_PATTERN =
+            Pattern.compile("^(.*?)(\\s+as-[A-Z]+)$");
+
     private String resolveByMap(String s) {
-        Matcher m = ANGLE.matcher(s);
-        StringBuffer sb = new StringBuffer();
-        Object replacement = null;
-        while (m.find()) {
-            KeyParser.KeyParse keys = parseKey(m.group(1));
-            for (NodeMap map : valuesInKeyOrder()) {
-                if (map == null) continue;
-                List<Object> list = map.getAsList(keys.base(), keys.intList());
-                if (list.isEmpty()) continue;
-                replacement = keys.kind().equals(SINGLE) ? list.getLast() : list;
-                if (replacement != null)
-                    break;
-            }
-            if (replacement != null) break;
+        System.out.println("@@===resolveByMap: " + s);
+        System.out.println("@@toZeroBasedSeries1" + s);
+        String mainText = toZeroBasedSeries(s).trim();
+        System.out.println("@@toZeroBasedSeries2 " + mainText);
+        String suffix = "";
+        Matcher suffixMatcher = AS_TYPE_PATTERN.matcher(mainText);
+        if (suffixMatcher.matches()) {
+            mainText = suffixMatcher.group(1);
+            suffix = suffixMatcher.group(2);   // always non-null here
         }
 
-        if (replacement == null)
-            return s;
+        try {
+            Matcher m = ANGLE.matcher(mainText);
+            StringBuffer sb = new StringBuffer();
+            Object replacement = null;
+            while (m.find()) {
 
-        m.appendReplacement(sb, String.valueOf(replacement));
+                System.out.println("@@$$m.group(1): " + m.group(1));
 
-        m.appendTail(sb);
-        return sb.toString();
+                for (NodeMap map : valuesInKeyOrder()) {
+                    if (map == null) continue;
+                    ArrayNode list = map.getAsArrayNode(m.group(1));
+                    if (list == null || list.isEmpty()) continue;
+                    replacement = suffix.isEmpty() ?  list.get(list.size()-1).asText() : (suffix.equals("as-LIST") ? list : list.get(list.size()-1).asText());
+                    if (replacement != null)
+                        break;
+                }
+                if (replacement != null) break;
+            }
+
+            if (replacement == null)
+                return s;
+
+            m.appendReplacement(sb, String.valueOf(replacement));
+
+            m.appendTail(sb);
+            return sb.toString();
+        } catch (Throwable t) {
+            throw new RuntimeException("Could not resolve by map '" + s + "'", t);
+        }
     }
 
 
     private String resolveCurly(String s) {
-        Matcher m = CURLY.matcher(s);
-        StringBuffer sb = new StringBuffer();
-        while (m.find()) {
-            String key = m.group(1).trim();
-            String repl = key.endsWith("?") ? String.valueOf(evalToBoolean(key.substring(0, key.length() - 1), this)) : String.valueOf(eval(key, this));
-            m.appendReplacement(sb, repl == null ? m.group(0) : Matcher.quoteReplacement(repl));
+        try {
+            Matcher m = CURLY.matcher(s);
+            StringBuffer sb = new StringBuffer();
+            while (m.find()) {
+                String key = m.group(1).trim();
+                String repl = key.endsWith("?") ? String.valueOf(evalToBoolean(key.substring(0, key.length() - 1), this)) : String.valueOf(eval(key, this));
+                m.appendReplacement(sb, repl == null ? m.group(0) : Matcher.quoteReplacement(repl));
+            }
+            m.appendTail(sb);
+            return sb.toString();
+        } catch (Throwable t) {
+            throw new RuntimeException("Could not resolve by curly bracket expression '" + s + "'", t);
         }
-        m.appendTail(sb);
-        return sb.toString();
     }
 
 
     @Override
     public Object get(Object key) {
         for (NodeMap map : maps.values()) {
-            List<Object> list = map.getAsList(key, -1);
+            ArrayNode list = map.getAsArrayNode(key);
             if (list.isEmpty()) continue;
-            return list.getLast();
+            return list.get(list.size()-1);
         }
         return null;
     }
@@ -212,4 +259,30 @@ public abstract class MappingProcessor implements Map<String, Object> {
     public Set<Map.Entry<String, Object>> entrySet() {
         return Set.of();
     }
+
+
+    private static final Pattern SERIES = Pattern.compile("#\\s*([\\d\\s,\\-:]+)");
+
+    public static String toZeroBasedSeries(String input) {
+        return SERIES.matcher(input).replaceAll(mr -> {
+            String seq = mr.group(1);                 // e.g. "1-2 , 6"
+            StringBuilder out = new StringBuilder("[");
+            for (String token : seq.replaceAll("\\s+", "")
+                    .split("(?=[,\\-:])|(?<=[,\\-:])")) {
+                if (token.equals(",") || token.equals("-") || token.equals(":")) {
+                    out.append(token);
+                } else {
+                    int n = Integer.parseInt(token);
+                    if (n == 0) throw new IllegalArgumentException("Index cannot be 0 when using '#' syntax");
+                    out.append(n - 1);
+                }
+            }
+            out.append(']');
+
+            return out.toString();
+        }).replaceAll("\\s+\\[", "[")   // remove whitespace before '['
+                .replaceAll("]\\s+", "]")// remove whitespace after ']'
+                .replaceAll("\\s*\\.\\s*", ".");
+    }
+
 }

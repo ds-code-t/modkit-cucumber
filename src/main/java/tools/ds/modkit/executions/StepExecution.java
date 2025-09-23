@@ -15,7 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static tools.ds.modkit.coredefinitions.MetaSteps.RUN_SCENARIO;
+//import static tools.ds.modkit.coredefinitions.MetaSteps.RUN_SCENARIO;
+import static tools.ds.modkit.blackbox.BlackBoxBootstrap.skipLogging;
 import static tools.ds.modkit.state.GlobalState.*;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.trace.ObjDataRegistry.setFlag;
@@ -57,7 +58,9 @@ public class StepExecution {
 
         Map<Integer, StepExtension> nestingMap = new HashMap<>();
 
-        rootScenarioNameStep = new StepExtension(steps.getFirst().delegate, this, pickle, true, true, RUN_SCENARIO + pickle.getName());
+//        rootScenarioNameStep = new StepExtension(steps.getFirst().delegate, this, pickle, true, true, RUN_SCENARIO + pickle.getName());
+        rootScenarioNameStep = new StepExtension( pickle, this, steps.getFirst().delegate);
+        rootScenarioNameStep.overRideUUID = skipLogging;
         nestingMap.put(-1, rootScenarioNameStep);
 
         setNesting(steps, 0, nestingMap);

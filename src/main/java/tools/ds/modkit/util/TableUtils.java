@@ -13,6 +13,15 @@ import static tools.ds.modkit.util.CucumberQueryUtil.messagePickle;
 
 public class TableUtils {
 
+    public static <K, V>
+    LinkedListMultimap<String, LinkedListMultimap<K, V>> toRowsMultimap(DataTable dataTable) {
+        List<LinkedListMultimap<K, V>> rowList = toListOfMultimap(dataTable);
+        LinkedListMultimap<String, LinkedListMultimap<K, V>> returnMap = LinkedListMultimap.create();
+        assert rowList != null;
+        rowList.forEach(r -> returnMap.put("ROW", r));
+        return returnMap;
+    }
+
     public static <K, V> List<LinkedListMultimap<K, V>> toListOfMultimap(DataTable dataTable) {
         List<List<String>> lists = dataTable.asLists();
         if (lists == null || lists.isEmpty()) {
@@ -39,7 +48,7 @@ public class TableUtils {
 
 
     public static <K, V> LinkedListMultimap<K, V> toFlatMultimap(List<? extends List<?>> table) {
-        if (table == null || table.isEmpty() || table.size()<2) {
+        if (table == null || table.isEmpty() || table.size() < 2) {
             throw new IllegalArgumentException("Input table must not be null or empty");
         }
 

@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static tools.ds.modkit.mappings.KeyParser.Kind.LIST;
+
 
 /**
  * NodeMap
@@ -68,6 +68,10 @@ public class NodeMap {
             multi = MAPPER.valueToTree(mm);
         } else
             multi = MAPPER.valueToTree(obj);
+    }
+
+    public void merge(Object obj){
+        multi.setAll((ObjectNode) MAPPER.valueToTree(obj));
     }
 
     // JsonPath configs
@@ -183,51 +187,21 @@ public class NodeMap {
         JsonPath.using(NORMAL_CFG).parse(multi).set(jp, jsonView);
     }
 
-    // ============================== GET (JSON view) ==============================
 
 
-//    public Object get(KeyParser.KeyParse keys) {
-//        JsonNode n = get(keys.base());
-//        if (n == null) return null;
-//        if (n.isArray()) {
-//            ArrayNode arr = (ArrayNode) n;
-//            if (arr.isEmpty()) return null;
-//            List<Object> returnList = new ArrayList<>();
-//            for (int i : keys.intList()) {
-//                int index =  i < 0 ? arr.size() - 1 + i : i;
-//                if (arr.size() < index || index < 0) {
-//                    returnList.add(null);
-//                    continue;
-//                }
-//                returnList.add(arr.get(i));
-//            }
-//        }
-//        else
-//        {
-//
-//        }
-//
-//        if(keys.kind().equals(LIST))
-//            return;
-//
-//        if (arr.size() <= index) return null;
-//            if (index < 0) {
-//                int newIndex = arr.size() - 1 + index;
-//                if (newIndex < 0) return null;
-//                return arr.get(newIndex);
-//            }
-//            return arr.get(index);
-//
-//        if (index == 0 || index == -1) return null;
-//        return n; // already a scalar/object node
-//    }
+    public ArrayNode getAllMatches(Object key) {
+        return toArrayNode(readScalar("$." + String.valueOf(key).trim()));
+    }
 
 
     public ArrayNode get(Object key) {
+        System.out.println("@@get: " + key);
         final String raw = String.valueOf(key).trim();
+        System.out.println("@@raw: " + raw);
         // "name" → latest entry of top-level array (scalar/object) ⇒ wrap as [value]
         if (isSimpleTopName(raw)) {
             JsonNode n = readScalar("$." + raw + "[-1]");
+//            JsonNode n = readScalar("$." + raw );
             return toArrayNode(n);
         }
         // "name[idx]" → that top-level index (scalar/object) ⇒ wrap as [value]
@@ -268,29 +242,8 @@ public class NodeMap {
      * - Out-of-range indices insert null into the result.
      * - Elements are converted to plain Java types (Map/List/Number/Boolean/String/null).
      */
-    public List<Object> getAsList(Object key, int... indices) {
-        ArrayNode arr = (ArrayNode) get(key); // get(...) now always returns ArrayNode
-        int size = arr.size();
-        List<Object> out = new ArrayList<>(indices.length);
-
-        for (int idx : indices) {
-            // NOTE: correct negative-index math is size() + idx (e.g., -1 → last).
-            int eff = (idx >= 0) ? idx : (size + idx);
-
-            if (eff < 0 || eff >= size) {
-                out.add(null);
-                continue;
-            }
-
-            JsonNode elem = arr.get(eff);
-            if (elem == null || elem.isNull()) {
-                out.add(null);
-            } else {
-                // Convert JsonNode to regular Java object (List/Map/Number/Boolean/String)
-                out.add(MAPPER.convertValue(elem, Object.class));
-            }
-        }
-        return out;
+    public ArrayNode getAsArrayNode(Object key) {
+        return getAllMatches(key); // get(...) now always returns ArrayNode
     }
 
 
@@ -330,10 +283,15 @@ public class NodeMap {
     // ============================== Helpers ==============================
 
     private JsonNode readScalar(String jsonPath) {
+        String normalized = jsonPath.replaceAll("\\.([A-Za-z0-9]+\\s+[A-Za-z0-9 ]*)", ".['$1']");
+        System.out.println("@@readScalar-normalized: " + normalized);
         try {
-            return JsonPath.using(NORMAL_CFG).parse(multi).read(jsonPath, JsonNode.class);
+            return JsonPath.using(NORMAL_CFG).parse(multi).read(normalized, JsonNode.class);
         } catch (PathNotFoundException e) {
             return null;
+        } catch (Throwable t)
+        {
+            throw new RuntimeException("Could not parse query path '" +normalized+ "'", t);
         }
     }
 

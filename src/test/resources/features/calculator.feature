@@ -1,5 +1,43 @@
 Feature: Tiny calculator
 
+
+  Scenario: calling scenario 1
+
+    * SET TABLE VALUES
+      | A  | A  | A  | D  | E  |
+      | a1 | b1 | c1 | d1 | e1 |
+      | a2 | b2 | c2 | d2 | e2 |
+      | a3 | b3 | c3 | d3 | e3 |
+
+
+#    * save "c-1" as "C"
+#    * save "c-2" as "C"
+#    * save "c-3" as "C"
+#    * save "c-4" as "C"
+#    * save "c-5" as "C"
+
+#    Given the string "<C #2>" is attached as "A"
+
+    Given the string "qq<ROW #1.A #1:2>ww" is attached as "A"
+#    Given the string "<A #1> <B #2> <C #3> <C #3> <C #4> <C #5> <C #6>" is attached as "A"
+#    Given the string "<A #1> <B #1> <C #1> <D #1>" is attached as "<B>"
+#    Given the string "<A #2> <B #2> <C #2> <D #2>" is attached as "<B>"
+#    Given the string "<A #3> <B #3> <C #3> <D #3>" is attached as "<B>"
+#    Given the string "<A> <B> <C> <D>" is attached as "<B>"
+#    Given the string "s1.1" is attached as "<B>"
+#
+#    Then RUN SCENARIOS
+#      | Scenario Tags | A  | B  |
+#      | @cc           | 77 | 88 |
+#
+#    Given the string "s1.2" is attached as "<B>"
+
+  @cc
+  Scenario: called Scenario2 <Scenario Tags> <A> , <B>
+    Given the string "2.1" is attached as "<B> , tags: <Scenario Tags>"
+    Given the string "2.2" is attached as "<B> , tags: <Scenario Tags>"
+
+
   Scenario Outline: wwnew  <A> , <B>
     Given a is 1 and b is 2
     Given a is <A> and b is <B>
@@ -14,7 +52,7 @@ Feature: Tiny calculator
   Scenario Outline: line <A> , <B>
     Given the string "<A>" is attached as "<B>"
 
-    Then RUN SCENARIOS:
+    Then RUN SCENARIOS
       | Scenario Tags | A  | B  | D  |
       | <Tags>        | 77 | 88 | 99 |
 #      | <Tags>        |
@@ -28,7 +66,7 @@ Feature: Tiny calculator
   @bb
   Scenario Outline: new  <A> , <B>, tags:  <D>
     Given stringCheck "0 d: <D>, a: <A> , c:<C>"
-    Then RUN SCENARIOS:
+    Then RUN SCENARIOS
       | Scenario Tags |
       | <D>           |
 
@@ -65,7 +103,7 @@ Feature: Tiny calculator
 
 
   Scenario: getScenarios 1
-    Then RUN SCENARIOS:
+    Then RUN SCENARIOS
       | Scenario Tags |
       | @aa           |
 

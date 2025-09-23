@@ -1,34 +1,97 @@
 package tools.ds.modkit.util.stepbuilder;
 
 import io.cucumber.core.gherkin.Pickle;
+import io.cucumber.core.gherkin.Step;
 import io.cucumber.core.runner.Runner;
+import io.cucumber.core.stepexpression.Argument;
+import io.cucumber.gherkin.GherkinDialects;
+import io.cucumber.messages.types.PickleStep;
+import io.cucumber.messages.types.PickleStepArgument;
+import io.cucumber.messages.types.PickleStepType;
 import io.cucumber.plugin.event.PickleStepTestStep;
+import tools.ds.modkit.extensions.StepExtension;
 import tools.ds.modkit.util.Reflect;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import static tools.ds.modkit.coredefinitions.MetaSteps.defaultMatchFlag;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
+import static tools.ds.modkit.util.Reflect.getProperty;
 import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 
 public class StepUtilities {
 
-    public static Object matchStepToStepDefinition(Runner runner, Pickle pickle, io.cucumber.core.gherkin.Step step) {
-        return invokeAnyMethod(runner, "matchStepToStepDefinition", pickle, step);
+
+    public static PickleStep createPickleStep(PickleStepArgument pickleStepArgument, java.util.List<String> astNodeIds, String id, PickleStepType pickleStepType, String stepText) {
+        return new PickleStep(pickleStepArgument, astNodeIds, id, pickleStepType, stepText);
+    }
+
+    public static io.cucumber.core.gherkin.Step createGherikinMessageStep(PickleStep pickleStep, String previousGivenWhenThenKeyword, io.cucumber.plugin.event.Location location, String keyword) {
+        return (io.cucumber.core.gherkin.Step) Reflect.newInstance(
+                "io.cucumber.core.gherkin.messages.GherkinMessagesStep",
+                pickleStep,
+                GherkinDialects.getDialect(getScenarioState().getPickleLanguage()).orElse(GherkinDialects.getDialect("en").get()),
+                previousGivenWhenThenKeyword,
+                location,
+                keyword
+        );
     }
 
 
-    public static PickleStepTestStep createPickleStepTestStep(io.cucumber.core.gherkin.Step newStep, java.util.UUID uuid, java.net.URI uri) {
-        Object pickleStepDefinitionMatch = getDefinition(getScenarioState().getRunner(), getScenarioState().getScenarioPickle(), newStep);
+    public static PickleStepTestStep createPickleStepTestStep(io.cucumber.core.gherkin.Step gherikinMessageStep, java.util.UUID uuid, java.net.URI uri) {
+        Object pickleStepDefinitionMatch = getDefinition(getScenarioState().getRunner(), getScenarioState().getScenarioPickle(), gherikinMessageStep);
         return (PickleStepTestStep) Reflect.newInstance(
                 "io.cucumber.core.runner.PickleStepTestStep",
                 uuid,             // java.util.UUID
                 uri,                // java.net.URI
-                newStep,        // io.cucumber.core.gherkin.Step (public)
+                gherikinMessageStep,        // io.cucumber.core.gherkin.Step (public)
                 pickleStepDefinitionMatch            // io.cucumber.core.runner.PickleStepDefinitionMatch (package-private instance is fine)
         );
     }
+
+    public static PickleStepTestStep createPickleStepTestStep(PickleStepArgument pickleStepArgument, java.util.List<String> astNodeIds, String id, PickleStepType pickleStepType, String stepText, String previousGivenWhenThenKeyword, io.cucumber.plugin.event.Location location, String keyword, java.util.UUID uuid, java.net.URI uri) {
+        PickleStep pickleStep = createPickleStep(pickleStepArgument, astNodeIds, id, pickleStepType, stepText);
+        Step gherikinMessageStep = createGherikinMessageStep(pickleStep, previousGivenWhenThenKeyword, location, keyword);
+        System.out.println("@@^pickleStep: " + pickleStep);
+        System.out.println("@@^gherikinMessageStep: " + gherikinMessageStep);
+        return createPickleStepTestStep(gherikinMessageStep, uuid, uri);
+    }
+
+
+    public static PickleStepTestStep createScenarioPickleStepTestStep(io.cucumber.core.gherkin.Pickle pickle, PickleStepTestStep pickleStepTestStep) {
+        try {
+            String newStepText = defaultMatchFlag + pickle.getKeyword() + ":" + pickle.getName();
+            System.out.println("@@==createScenarioPickleStepTestStep1 pickle.getKeyword() = " + pickle.getKeyword());
+            System.out.println("@@==createScenarioPickleStepTestStep2 pickle.getName() = " + pickle.getName());
+            io.cucumber.core.gherkin.Step gherikinMessageStep = (Step) pickleStepTestStep.getStep();
+            System.out.println("@@==createScenarioPickleStepTestStep3 gherikinMessageStep = " + gherikinMessageStep.getText());
+
+            PickleStepTestStep step = createPickleStepTestStep(null, new ArrayList<>(), UUID.randomUUID().toString(), PickleStepType.CONTEXT, newStepText, gherikinMessageStep.getPreviousGivenWhenThenKeyword(), pickle.getLocation(), gherikinMessageStep.getKeyword(), UUID.randomUUID(), pickle.getUri());
+            System.out.println("@@==createScenarioPickleStepTestStep4 step = " + step.getStepText());
+
+            System.out.println("@@#step1: " + step);
+            System.out.println("@@#step2: " + step.getStep());
+            System.out.println("@@#step3: " + step.getStepText());
+            return step;
+
+        }
+        catch (Throwable t)
+        {
+            t.printStackTrace();
+            throw t;
+        }
+//        return createPickleStepTestStep( null, new ArrayList<>(),   UUID.randomUUID().toString(),  PickleStepType.CONTEXT,  pickle.getName(),  "*",  pickle.getLocation(),  "*",   UUID.randomUUID(),  pickle.getUri());
+    }
+
 
     public static Object getDefinition(Runner runner, io.cucumber.core.gherkin.Pickle scenarioPickle, io.cucumber.core.gherkin.Step step) {
         return matchStepToStepDefinition(runner, scenarioPickle, step);
     }
 
+    public static Object matchStepToStepDefinition(Runner runner, Pickle pickle, io.cucumber.core.gherkin.Step step) {
+        return invokeAnyMethod(runner, "matchStepToStepDefinition", pickle, step);
+    }
 
 }

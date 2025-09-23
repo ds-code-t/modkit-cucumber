@@ -72,11 +72,10 @@ public final class BlackBoxBootstrap {
         // Skip TestCase.emitTestCaseStarted(..) when executionId matches a configured UUID
 
         Registry.register(
-                on("io.cucumber.core.runner.TestCase", "emitTestCaseStarted", 3)
+                on("io.cucumber.core.runner.TestStep", "emitTestStepStarted", 4)
                         .around(
                                 args -> {
                                     StepExtension step = getScenarioState().getCurrentStep();
-
 
 //                                    System.out.println("@@$$step: " + step.getId());
                                     return step!=null && step.getId().equals(skipLogging); // bypass original
@@ -89,7 +88,7 @@ public final class BlackBoxBootstrap {
 
 // Skip TestCase.emitTestCaseFinished(..) when executionId matches a configured UUID
         Registry.register(
-                on("io.cucumber.core.runner.TestCase", "emitTestCaseFinished", 4)
+                on("io.cucumber.core.runner.TestStep", "emitTestStepFinished", 6)
                         .around(
                                 args -> {
                                     StepExtension step = getScenarioState().getCurrentStep();

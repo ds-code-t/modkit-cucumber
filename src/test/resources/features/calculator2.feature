@@ -12,7 +12,7 @@ Feature: Tiny calculator2
   Scenario: getScenarios 2
     Given a is 1 and b is 6
   :     Given a is 2 and b is 6
-#    Then RUN SCENARIOS:
+#    Then RUN SCENARIOS
 #      | Scenario Tags |
 #      | @aa           |
 #      | @aa           |

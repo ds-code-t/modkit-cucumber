@@ -1,5 +1,6 @@
 package tools.ds.modkit.state;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.LinkedListMultimap;
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
@@ -52,8 +53,14 @@ public final class ScenarioState {
     // Canonical keys (unchanged)
     private NodeMap runMap = new NodeMap();
 
+    public void mergeToRunMap(Object obj){
+        runMap.merge(obj);
+        System.out.println("@@-runMap: " + runMap.get("A"));
+    }
+
     public void put(Object key, Object value) {
         runMap.put(key, value);
+
     }
 
     public Object get(Object key) {

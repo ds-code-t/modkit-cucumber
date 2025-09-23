@@ -24,4 +24,11 @@ public class MetaSteps {
         // place Holder
     }
 
+    public static final String defaultMatchFlag = "\u207A-DEFAULT_DEFINITION_";
+
+    @Given("^"+defaultMatchFlag+"(.*)$")
+    public static void matchDefault(String text) {
+        System.out.println("@@text: " + text);
+    }
+
 }
