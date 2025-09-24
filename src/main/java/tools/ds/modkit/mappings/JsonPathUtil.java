@@ -78,7 +78,6 @@ public class JsonPathUtil {
             int br = part.indexOf('[');
             if (br >= 0) {
                 if (!(current instanceof ObjectNode obj)) {
-                  
                     return new NodeHandle(null,null,null,null);
                 }
                 if (!part.endsWith("]") || br == 0) {

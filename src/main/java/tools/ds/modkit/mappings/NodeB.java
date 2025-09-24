@@ -20,18 +20,21 @@ import static tools.ds.modkit.mappings.JsonPathUtil.getOrCreate;
 public class NodeB {
 
     // ---- TypeRefs ----
-    private static final TypeRef<List<Object>> LIST_OF_OBJECTS = new TypeRef<>() {};
+    private static final TypeRef<List<Object>> LIST_OF_OBJECTS = new TypeRef<>() {
+    };
 
     // ---- ObjectMapper ----
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
     static {
         MAPPER.registerModule(new GuavaModule());
         // keep it simple: no default typing
     }
 
-    // ---- JsonPath Configs ----
+
     private static final Configuration PATHS_CFG = Configuration.builder()
-            .jsonProvider(new JsonSmartJsonProvider())
+            .jsonProvider(new JacksonJsonNodeJsonProvider(MAPPER))
+            .mappingProvider(new JacksonMappingProvider(MAPPER))
             .options(Option.ALWAYS_RETURN_LIST, Option.AS_PATH_LIST, Option.SUPPRESS_EXCEPTIONS)
             .build();
 
@@ -53,10 +56,21 @@ public class NodeB {
     private final ObjectNode root;
 
     // ---- Ctors ----
-    public NodeB() { this.root = MAPPER.createObjectNode(); }
-    public NodeB(Map<?, ?> map) { this.root = toObjectNode(map); }
-    public NodeB(LinkedListMultimap<?, ?> multimap) { this.root = toObjectNode(multimap); }
-    public ObjectNode objectNode() { return root; }
+    public NodeB() {
+        this.root = MAPPER.createObjectNode();
+    }
+
+    public NodeB(Map<?, ?> map) {
+        this.root = toObjectNode(map);
+    }
+
+    public NodeB(LinkedListMultimap<?, ?> multimap) {
+        this.root = toObjectNode(multimap);
+    }
+
+    public ObjectNode objectNode() {
+        return root;
+    }
 
     // ---- Key preprocessing ----
     private static String requireDollarDot(String key) {
@@ -92,7 +106,18 @@ public class NodeB {
         // Try to get both paths and values
         Object rawPaths = JsonPath.using(PATHS_CFG).parse(root).read(q);
         @SuppressWarnings("unchecked")
-        List<String> paths = (rawPaths instanceof List<?> l) ? (List<String>) l : List.of();
+        List<String> paths;
+        if (rawPaths instanceof List<?> l) {
+            // json-smart provider shape
+            paths = new ArrayList<>(l.size());
+            for (Object o : l) paths.add(String.valueOf(o));
+        } else if (rawPaths instanceof ArrayNode an) {
+            // jackson provider shape
+            paths = new ArrayList<>(an.size());
+            for (JsonNode n : an) paths.add(n.asText());
+        } else {
+            paths = List.of();
+        }
 
         List<Object> values = JsonPath.using(VALUES_CFG).parse(root).read(q, LIST_OF_OBJECTS);
         if (values == null) values = List.of();
@@ -106,7 +131,6 @@ public class NodeB {
             for (Object v : values) out.put(q, v);
             return out;
         }
-
         int n = Math.min(paths.size(), values.size());
         for (int i = 0; i < n; i++) out.put(paths.get(i), values.get(i));
         return out;
@@ -164,34 +188,47 @@ public class NodeB {
         }
 
         boolean isDirectPath = !MULTI_MATCH_META.matcher(q).find();
-
+        if (isDirectPath) {
+            updateRoot(q,value,true);
+            return;
+        }
         Object rawPaths = JsonPath.using(PATHS_CFG).parse(root).read(q);
         @SuppressWarnings("unchecked")
         List<String> paths = (rawPaths instanceof List<?> l) ? (List<String>) l : new ArrayList<>();
 
-        // For direct single-target paths, if provider returns no paths, still act on the concrete q
-        if (isDirectPath && paths.isEmpty()) paths = new ArrayList<>(List.of(q));
 
         for (String p : paths) {
-            JsonPathUtil.NodeHandle h = getOrCreate(root, p, isDirectPath); // create only for direct, never for multi
-            if (h == null) continue;
+            updateRoot(p,value,false);
+        }
+    }
 
-            JsonNode v = MAPPER.valueToTree(value);
-            if (h.node instanceof ArrayNode a) {
-                // If the node we resolved IS an array, append
-                a.add(v);
-            } else if (h.parent instanceof ObjectNode obj && h.fieldName != null) {
-                obj.set(h.fieldName, v); // replace field
-            } else if (h.parent instanceof ArrayNode arr && h.index != null) {
-                arr.set(h.index, v);     // replace element
-            }
+    public void updateRoot(String path, Object value , boolean createMissing){
+        JsonPathUtil.NodeHandle h = getOrCreate(root, path, createMissing); // create only for direct, never for multi
+        if (h == null) return;
+
+        JsonNode v = MAPPER.valueToTree(value);
+        if (h.node instanceof ArrayNode a) {
+            // If the node we resolved IS an array, append
+            a.add(v);
+        } else if (h.parent instanceof ObjectNode obj && h.fieldName != null) {
+            obj.set(h.fieldName, v); // replace field
+        } else if (h.parent instanceof ArrayNode arr && h.index != null) {
+            arr.set(h.index, v);     // replace element
         }
     }
 
     // ---- Merge (ObjectNode, Map, LinkedListMultimap) ----
-    public void merge(ObjectNode other) { if (other != null) root.setAll(other); }
-    public void merge(Map<?, ?> other) { if (other != null) root.setAll(toObjectNode(other)); }
-    public void merge(LinkedListMultimap<?, ?> other) { if (other != null) root.setAll(toObjectNode(other)); }
+    public void merge(ObjectNode other) {
+        if (other != null) root.setAll(other);
+    }
+
+    public void merge(Map<?, ?> other) {
+        if (other != null) root.setAll(toObjectNode(other));
+    }
+
+    public void merge(LinkedListMultimap<?, ?> other) {
+        if (other != null) root.setAll(toObjectNode(other));
+    }
 
     // ---- Normalize constructor/merge inputs ----
     private static ObjectNode toObjectNode(Map<?, ?> map) {
@@ -213,4 +250,5 @@ public class NodeB {
     private static boolean isSimpleCompletePath(String path) {
         return path != null && SIMPLE_PATH.matcher(path).matches();
     }
+
 }
