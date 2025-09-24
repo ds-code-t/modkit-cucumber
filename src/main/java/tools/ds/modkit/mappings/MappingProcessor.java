@@ -115,7 +115,7 @@ public abstract class MappingProcessor implements Map<String, Object> {
                 prev = input;
                 if (input.contains("<")) {
                     input = resolveByMap(input);
-                    System.out.println("@@=====3: "+ input);
+                    System.out.println("@@=====3: " + input);
                 } else {
                     break;
                 }
@@ -154,9 +154,9 @@ public abstract class MappingProcessor implements Map<String, Object> {
 
                 for (NodeMap map : valuesInKeyOrder()) {
                     if (map == null) continue;
-                    ArrayNode list = map.getAsArrayNode(m.group(1));
+                    List<?> list = map.getValues(m.group(1));
                     if (list == null || list.isEmpty()) continue;
-                    replacement = suffix.isEmpty() ?  list.get(list.size()-1).asText() : (suffix.equals("as-LIST") ? list : list.get(list.size()-1).asText());
+                    replacement = suffix.isEmpty() ? list.get(list.size() - 1) : (suffix.equals("as-LIST") ? list : list.get(list.size() - 1));
                     if (replacement != null)
                         break;
                 }
@@ -195,10 +195,12 @@ public abstract class MappingProcessor implements Map<String, Object> {
 
     @Override
     public Object get(Object key) {
+        if(key==null)
+            throw new RuntimeException("key cannot be null");
         for (NodeMap map : maps.values()) {
-            ArrayNode list = map.getAsArrayNode(key);
+            List<?> list = map.getValues(String.valueOf(key));
             if (list.isEmpty()) continue;
-            return list.get(list.size()-1);
+            return list.get(list.size() - 1);
         }
         return null;
     }
@@ -265,22 +267,22 @@ public abstract class MappingProcessor implements Map<String, Object> {
 
     public static String toZeroBasedSeries(String input) {
         return SERIES.matcher(input).replaceAll(mr -> {
-            String seq = mr.group(1);                 // e.g. "1-2 , 6"
-            StringBuilder out = new StringBuilder("[");
-            for (String token : seq.replaceAll("\\s+", "")
-                    .split("(?=[,\\-:])|(?<=[,\\-:])")) {
-                if (token.equals(",") || token.equals("-") || token.equals(":")) {
-                    out.append(token);
-                } else {
-                    int n = Integer.parseInt(token);
-                    if (n == 0) throw new IllegalArgumentException("Index cannot be 0 when using '#' syntax");
-                    out.append(n - 1);
-                }
-            }
-            out.append(']');
+                    String seq = mr.group(1);                 // e.g. "1-2 , 6"
+                    StringBuilder out = new StringBuilder("[");
+                    for (String token : seq.replaceAll("\\s+", "")
+                            .split("(?=[,\\-:])|(?<=[,\\-:])")) {
+                        if (token.equals(",") || token.equals("-") || token.equals(":")) {
+                            out.append(token);
+                        } else {
+                            int n = Integer.parseInt(token);
+                            if (n == 0) throw new IllegalArgumentException("Index cannot be 0 when using '#' syntax");
+                            out.append(n - 1);
+                        }
+                    }
+                    out.append(']');
 
-            return out.toString();
-        }).replaceAll("\\s+\\[", "[")   // remove whitespace before '['
+                    return out.toString();
+                }).replaceAll("\\s+\\[", "[")   // remove whitespace before '['
                 .replaceAll("]\\s+", "]")// remove whitespace after ']'
                 .replaceAll("\\s*\\.\\s*", ".");
     }

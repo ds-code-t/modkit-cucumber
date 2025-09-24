@@ -18,7 +18,7 @@ Feature: Tiny calculator
 
 #    Given the string "<C #2>" is attached as "A"
 
-    Given the string "qq<ROW #1.A #1:2>ww" is attached as "A"
+    Given the string "<ROW[*] .A>" is attached as "A"
 #    Given the string "<A #1> <B #2> <C #3> <C #3> <C #4> <C #5> <C #6>" is attached as "A"
 #    Given the string "<A #1> <B #1> <C #1> <D #1>" is attached as "<B>"
 #    Given the string "<A #2> <B #2> <C #2> <D #2>" is attached as "<B>"

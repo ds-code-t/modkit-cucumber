@@ -17,7 +17,7 @@ public class NodeMapArrayAccessTest {
         map.put("nums.arrayA[0].tag1", "AAA");
 
         // Query without specifying [0], should use [-1] implicitly
-        assertEquals("AAA", map.get("nums.arrayA.tag1").asText());
+        assertEquals("AAA", map.get("nums.arrayA.tag1"));
     }
 
     @Test
@@ -28,7 +28,7 @@ public class NodeMapArrayAccessTest {
         map.put("nums.arrayB[1]", "CCC");
 
         // "nums.arrayB" without index should return last element ("CCC")
-        assertEquals("CCC", map.get("nums.arrayB").asText());
+        assertEquals("CCC", map.get("nums.arrayB"));
     }
 
     @Test
@@ -39,7 +39,7 @@ public class NodeMapArrayAccessTest {
         map.put("logs", MAPPER.createObjectNode().put("msg", "second"));
 
         // "logs" without index → last element
-        assertEquals("second", map.get("logs").get("msg").asText());
+        assertEquals("second", map.get("logs").get("msg"));
     }
 
     @Test

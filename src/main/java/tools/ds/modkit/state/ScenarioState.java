@@ -53,14 +53,15 @@ public final class ScenarioState {
     // Canonical keys (unchanged)
     private NodeMap runMap = new NodeMap();
 
-    public void mergeToRunMap(Object obj){
+    public void mergeToRunMap( LinkedListMultimap<?,?> obj){
         runMap.merge(obj);
         System.out.println("@@-runMap: " + runMap.get("A"));
     }
 
     public void put(Object key, Object value) {
-        runMap.put(key, value);
-
+        if(key == null)
+            throw new RuntimeException("key cannot be null");
+        runMap.put(String.valueOf(key), value);
     }
 
     public Object get(Object key) {
