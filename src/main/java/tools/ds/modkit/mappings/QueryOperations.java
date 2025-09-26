@@ -14,49 +14,61 @@ import java.util.List;
 
 import static tools.ds.modkit.mappings.NodeMap.MAPPER;
 
-
 public class QueryOperations {
 
-
-    public static boolean setValue(ObjectNode root, String jsonataExpr, Object value) throws ParseException, IOException, EvaluateException {
+    public static boolean setValue(ObjectNode root, String jsonataExpr, Object value)
+            throws ParseException, IOException, EvaluateException {
         boolean valueSet = false;
-        jsonataExpr = jsonataExpr.strip().replaceAll("^\\$", "").replaceAll("^\\.", "");
+
+        // normalize: drop leading "$."
+        jsonataExpr = jsonataExpr.strip().replaceAll("^\\$\\.", "");
+
+        // detect tail [index] (optional)
+        boolean isArrayNode = jsonataExpr.matches(".*\\[\\s*(?:\\d+)?\\s*\\]$");
         String mainPath = jsonataExpr;
-        boolean isArrayNode = jsonataExpr.matches(".*\\[\\s*(?:\\d+)?\\s*\\]$");//
         Integer arrayIndex = null;
         if (isArrayNode) {
             mainPath = jsonataExpr.substring(0, jsonataExpr.lastIndexOf("["));
             String arrayIndexString = jsonataExpr.substring(jsonataExpr.lastIndexOf("[") + 1, jsonataExpr.lastIndexOf("]"));
-            if (!arrayIndexString.isBlank())
-                arrayIndex = Integer.parseInt(arrayIndexString.strip());
+            if (!arrayIndexString.isBlank()) {
+                try {
+                    arrayIndex = Integer.parseInt(arrayIndexString.strip());
+                } catch (Exception e) {
+                    throw new RuntimeException("invalid array syntax '" + arrayIndexString + "'");
+                }
+            }
         }
 
+        // parent path + final field name (quoted names allowed with '.' separators; no brackets for names)
+        int dot = mainPath.lastIndexOf('.');
+        boolean singleProperty = (dot < 0);
 
-        int lastIndex = Math.max(Math.max(mainPath.lastIndexOf("["), mainPath.lastIndexOf(".")), 0);
-        String parentPath = mainPath.substring(0, lastIndex);
+        String parentPath = singleProperty ? "$" : mainPath.substring(0, dot);
+        isArrayNode = isArrayNode || singleProperty; // (intentional) treat top-level field as array when creating
 
-        System.out.println("@@parentPath: " + parentPath);
-        String fieldName = mainPath.substring(lastIndex).strip().replaceAll("[\\.'\"\\]\\[]", "");
-//        String parentExpr = mainPath + "^";
-//        String parentExpr = "(" + mainPath + ")~>$map(function($v){$v.%})";
+        String seg = singleProperty ? mainPath : mainPath.substring(dot + 1);
+//        final String fieldName = seg.strip();
+        seg = seg.strip();
+        // unwrap a single pair of surrounding quotes if present
+        if (seg.length() >= 2 &&
+                ((seg.charAt(0) == '\'' && seg.charAt(seg.length() - 1) == '\'') ||
+                        (seg.charAt(0) == '\"' && seg.charAt(seg.length() - 1) == '\"'))) {
+            seg = seg.substring(1, seg.length() - 1);
+        }
+        final String fieldName = seg;
 
+        // "directness" heuristic: allow [digits], disallow wildcards/slices/[*], no trailing parent operator
         String normalized = jsonataExpr.replaceAll("\\s+", "");
-// Remove allowed single-step brackets: [123], ['name'], ["name"]
-        String s = normalized.replaceAll("\\[(\\d+|(['\"]).*?\\2)\\]", "");
-// Remove wildcard navigation forms only (not arithmetic *): **, .*, [*]
-        s = s.replaceAll("(\\*\\*|(?<=\\.)\\*|\\[\\*\\])", "");
-
-// Direct iff no problematic brackets remain AND doesn't end with parent operator
+        String s = normalized.replaceAll("\\[\\d+\\]", ""); // strip allowed [123]
+        s = s.replaceAll("(\\*\\*|(?<=\\.)\\*|\\[\\*\\])", ""); // remove **, .*, [*]
         final boolean isDirect = !s.contains("[") && !s.endsWith("^");
 
         if (isDirect) {
-
-
+            // DIRECT: parent must be an ObjectNode (or ArrayNode if parentPath points to array and you intend to append)
             Expressions e = Expressions.parse(parentPath);
             JsonNode parent = e.evaluate(root);
 
             if (parent instanceof ObjectNode parentObject) {
-
                 JsonNode child = parentObject.get(fieldName);
 
                 if (child == null && isArrayNode) {
@@ -65,7 +77,6 @@ public class QueryOperations {
                 }
 
                 if (child instanceof ArrayNode childArray) {
-
                     if (arrayIndex == null) {
                         childArray.add(MAPPER.valueToTree(value));
                         valueSet = true;
@@ -74,26 +85,33 @@ public class QueryOperations {
                         valueSet = true;
                     }
                 } else {
-                    if (isArrayNode)
+                    if (isArrayNode) {
                         throw new RuntimeException("'" + fieldName + "' is not an Array but is trying to be set as an Array");
+                    }
                     parentObject.set(fieldName, MAPPER.valueToTree(value));
                     valueSet = true;
                 }
+
+            } else if (parent instanceof ArrayNode parentArray) {
+                // (intentional) if parent resolves to an array directly, just append
+                parentArray.add(MAPPER.valueToTree(value));
+                valueSet = true;
+
+            } else if (parent == null) {
+                throw new RuntimeException("parent object of '" + fieldName + "' is not defined");
+
             } else {
-                throw new RuntimeException("parent object of '" + fieldName + "' must be an ObjectNode");
+                throw new RuntimeException("parent object of '" + fieldName + "' must be an ObjectNode or ArrayNode");
             }
 
         } else {
-
-            // Holder for (parent object, current child value at fieldName)
-
-// Build pairs once from parentPath
-            List<JsonNode> parentNodes = evalToList(root, parentPath); // returns JsonNodes
+            // NON-DIRECT: build (parent, currentChild) pairs only for ObjectNode parents (intentional)
+            List<JsonNode> parentNodes = evalToList(root, parentPath);
             List<Pair> pairs = parentNodes.stream()
                     .filter(n -> n instanceof ObjectNode)
                     .map(n -> (ObjectNode) n)
                     .map(po -> new Pair(po, po.get(fieldName)))
-                    .filter(p -> p.current() != null)   // only parents that currently have the field
+                    .filter(p -> p.current() != null)
                     .toList();
 
             for (Pair pair : pairs) {
@@ -112,6 +130,7 @@ public class QueryOperations {
                 }
             }
         }
+
         return valueSet;
     }
 
@@ -152,6 +171,37 @@ public class QueryOperations {
     }
 
 
+//    public String parseTopLevelProperty(String input, ObjectNode root) {
+//        input = input.strip().replaceAll("^\\$\\.", "");
+//        String topLevel = input.substring(0, input.indexOf("."));
+//        String topLevelReplacement = !topLevel.contains("[") ? topLevel + "[-1]" : topLevel;
+//        if (root != null) {
+//            JsonNode jsonNode = root.get(topLevel);
+//            if (jsonNode == null)
+//                jsonNode = MAPPER.createArrayNode();
+//
+//            if (!(jsonNode instanceof ArrayNode)) {
+//                ArrayNode newArray = MAPPER.createArrayNode();
+//                newArray.add(MAPPER.valueToTree(jsonNode));
+//                root
+//            }
+//        }
+//
+//        return input.replaceFirst(topLevel, topLevelReplacement);
+//    }
+//
+//    public void createTopLevelArray(String topLevelProperty, ObjectNode root) {
+//        JsonNode jsonNode = root.get(topLevelProperty);
+//        if (jsonNode == null)
+//            jsonNode = MAPPER.createArrayNode();
+//
+//        if (!(jsonNode instanceof ArrayNode)) {
+//            ArrayNode newArray = MAPPER.createArrayNode();
+//            newArray.add(MAPPER.valueToTree(jsonNode));
+//            root.set(topLevelProperty, newArray);
+//        }
+//    }
+
     public static void main(String[] args) throws Exception {
         com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         java.util.function.Function<com.fasterxml.jackson.databind.JsonNode, String> pp =
@@ -160,34 +210,21 @@ public class QueryOperations {
                     catch (Exception e) { return String.valueOf(n); }
                 };
 
-        int total = 0, passed = 0;
-        java.util.function.BiConsumer<String, Boolean> pf = (label, ok) -> {
-            System.out.println((ok ? "[PASS] " : "[FAIL] ") + label);
-            System.out.println();
-        };
-        java.util.function.BiFunction<String, Boolean, Boolean> showRet = (label, actual) -> {
-            System.out.println(label);
-            System.out.println("Expected (return): true");
-            System.out.println("Actual   (return): " + actual);
-            return actual == true;
-        };
-        java.util.function.Function<Boolean, Boolean> showRetFalse = (actual) -> {
-            System.out.println("Expected (return): false");
-            System.out.println("Actual   (return): " + actual);
-            return actual == false;
-        };
-
-        // --------- Seed JSON ----------
+        // ===== Seed JSON =====
         ObjectNode root = mapper.createObjectNode();
-        ObjectNode a = root.putObject("a").putObject("b");
-        ArrayNode c = a.putArray("c"); c.add(1).add(2);
-        a.put("d", "orig");
-        ObjectNode e = a.putObject("e"); e.put("note", "exists");
 
+        // a.b.c array, a.b.d string, a."key with space" object
+        ObjectNode a = root.putObject("a").putObject("b");
+        a.putArray("c").add(1).add(2);
+        a.put("d", "orig");
+        root.with("a").putObject("key with space").put("note", "exists");
+
+        // data[].child.name
         ArrayNode data = root.putArray("data");
         ((ObjectNode) data.addObject().putObject("child")).put("name", "x");
         ((ObjectNode) data.addObject().putObject("child")).put("name", "y");
 
+        // people[age].nick
         ArrayNode people = root.putArray("people");
         ((ObjectNode) people.addObject()).put("age", 17).put("nick", "Teen");
         ((ObjectNode) people.addObject()).put("age", 18).put("nick", "Adult0");
@@ -196,7 +233,7 @@ public class QueryOperations {
         System.out.println(pp.apply(root));
         System.out.println();
 
-        // Helper to fetch by JSON Pointer and compare to expected JSON (string)
+        // === Helper for comparisons ===
         java.util.function.BiFunction<String, String, Boolean> assertPtrEquals = (ptr, expectedJson) -> {
             try {
                 JsonNode expected = mapper.readTree(expectedJson);
@@ -210,110 +247,73 @@ public class QueryOperations {
             }
         };
 
-        // ===== DIRECT PATHS =====
+        int total = 0, passed = 0;
+        java.util.function.BiConsumer<String, Boolean> pf = (label, ok) -> {
+            System.out.println((ok ? "[PASS] " : "[FAIL] ") + label);
+            System.out.println();
+        };
 
-        // 1) Direct: append to array $.a.b.c  -> [1,2,99]
+        // ---------- TESTS ----------
+
+        // [1] Direct: append to a.b.c
         total++;
-        System.out.println("[1] Direct $.a.b.c  (append 99)");
+        System.out.println("[1] Direct a.b.c  (append 99)");
         boolean r1 = setValue(root, "$.a.b.c", mapper.readTree("99"));
-        boolean ok1r = showRet.apply("", r1);
-        boolean ok1v = assertPtrEquals.apply("/a/b/c", "[1,2,99]");
-        boolean ok1 = ok1r && ok1v; if (ok1) passed++; pf.accept("[1] $.a.b.c", ok1);
+        boolean ok1 = r1 && assertPtrEquals.apply("/a/b/c", "[1,2,99]");
+        if (ok1) passed++; pf.accept("[1] a.b.c append", ok1);
 
-        // 2) Direct: overwrite $.a.b.d -> "hello"
+        // [2] Direct: overwrite a.b.d
         total++;
-        System.out.println("[2] Direct $.a.b.d  (overwrite to \"hello\")");
+        System.out.println("[2] Direct a.b.d  (overwrite to \"hello\")");
         boolean r2 = setValue(root, "$.a.b.d", mapper.readTree("\"hello\""));
-        boolean ok2r = showRet.apply("", r2);
-        boolean ok2v = assertPtrEquals.apply("/a/b/d", "\"hello\"");
-        boolean ok2 = ok2r && ok2v; if (ok2) passed++; pf.accept("[2] $.a.b.d", ok2);
+        boolean ok2 = r2 && assertPtrEquals.apply("/a/b/d", "\"hello\"");
+        if (ok2) passed++; pf.accept("[2] a.b.d overwrite", ok2);
 
-        // 3) Direct: bracket field $.a['b'].e -> {"k":1}
+        // [3] Direct: quoted field with space
         total++;
-        System.out.println("[3] Direct $.a['b'].e  (overwrite to {\"k\":1})");
-        boolean r3 = setValue(root, "$.a.'b'.e", mapper.readTree("{\"k\":1}"));
-        boolean ok3r = showRet.apply("", r3);
-        boolean ok3v = assertPtrEquals.apply("/a/b/e", "{\"k\":1}");
-        boolean ok3 = ok3r && ok3v; if (ok3) passed++; pf.accept("[3] $.a['b'].e", ok3);
+        System.out.println("[3] Direct a.'key with space'  (overwrite to {\"k\":1})");
+        boolean r3 = setValue(root, "$.a.'key with space'", mapper.readTree("{\"k\":1}"));
+        boolean ok3 = r3 && assertPtrEquals.apply("/a/key with space", "{\"k\":1}");
+        if (ok3) passed++; pf.accept("[3] a.'key with space' overwrite", ok3);
 
-        // 4) Direct: index at tail $.a.b.c[0] -> set index 0 to 7 => [7,2,99]
+        // [4] Direct: quoted plain field a."b"
         total++;
-        System.out.println("[4] Direct $.a.b.c[0]  (set index 0 to 7)");
-        boolean r4 = setValue(root, "$.a.b.c[0]", mapper.readTree("7"));
-        boolean ok4r = showRet.apply("", r4);
-        boolean ok4v = assertPtrEquals.apply("/a/b/c", "[7,2,99]");
-        boolean ok4 = ok4r && ok4v; if (ok4) passed++; pf.accept("[4] $.a.b.c[0]", ok4);
+        System.out.println("[4] Direct a.\"b\"  (overwrite to {\"x\":1})");
+        boolean r4 = setValue(root, "$.a.\"b\"", mapper.readTree("{\"x\":1}"));
+        boolean ok4 = r4 && assertPtrEquals.apply("/a/b", "{\"x\":1}");
+        if (ok4) passed++; pf.accept("[4] a.\"b\" overwrite", ok4);
 
-        // ===== NON-DIRECT UPDATES =====
-
-        // 5) Non-direct: $.data[].child.name -> "ZZZ" for all
+        // [5] Non-direct: wildcard data[].child.name
         total++;
-        System.out.println("[5] Non-Direct $.data[].child.name  (set to \"ZZZ\")");
+        System.out.println("[5] Non-Direct data[].child.name  (set to \"ZZZ\")");
         boolean r5 = setValue(root, "$.data[].child.name", mapper.readTree("\"ZZZ\""));
-        boolean ok5r = showRet.apply("", r5);
-        boolean ok5v = assertPtrEquals.apply("/data", "[{\"child\":{\"name\":\"ZZZ\"}},{\"child\":{\"name\":\"ZZZ\"}}]");
-        boolean ok5 = ok5r && ok5v; if (ok5) passed++; pf.accept("[5] $.data[].child.name", ok5);
+        boolean ok5 = r5 && assertPtrEquals.apply("/data", "[{\"child\":{\"name\":\"ZZZ\"}},{\"child\":{\"name\":\"ZZZ\"}}]");
+        if (ok5) passed++; pf.accept("[5] data[].child.name", ok5);
 
-        // 6) Non-direct: $.people[age >= 18].nick -> "Adult"
+        // [6] Non-direct: filter people[age >= 18].nick
         total++;
-        System.out.println("[6] Non-Direct $.people[age >= 18].nick  (set to \"Adult\")");
+        System.out.println("[6] Non-Direct people[age >= 18].nick  (set to \"Adult\")");
         boolean r6 = setValue(root, "$.people[age >= 18].nick", mapper.readTree("\"Adult\""));
-        boolean ok6r = showRet.apply("", r6);
-        boolean ok6v = assertPtrEquals.apply("/people", "[{\"age\":17,\"nick\":\"Teen\"},{\"age\":18,\"nick\":\"Adult\"}]");
-        boolean ok6 = ok6r && ok6v; if (ok6) passed++; pf.accept("[6] $.people[age >= 18].nick", ok6);
+        boolean ok6 = r6 && assertPtrEquals.apply("/people", "[{\"age\":17,\"nick\":\"Teen\"},{\"age\":18,\"nick\":\"Adult\"}]");
+        if (ok6) passed++; pf.accept("[6] people[age >= 18].nick", ok6);
 
-        // 7) Non-direct (multi-index on c): $.a.b.c[0,2] -> (no change expected with your current code)
+        // [7] Direct: top-level single property
         total++;
-        System.out.println("[7] Non-Direct $.a.b.c[0,2]  (expect no change)");
-        boolean r7 = setValue(root, "$.a.b.c[0,2]", mapper.readTree("55"));
-        boolean ok7r = showRetFalse.apply(r7);
-        boolean ok7v = assertPtrEquals.apply("/a/b/c", "[7,2,99]"); // unchanged
-        boolean ok7 = ok7r && ok7v; if (ok7) passed++; pf.accept("[7] $.a.b.c[0,2]", ok7);
+        System.out.println("[7] Direct top-level 'top' (append \"alpha\" then \"beta\")");
+        boolean r7a = setValue(root, "$.top", mapper.readTree("\"alpha\""));
+        boolean r7b = setValue(root, "$.top", mapper.readTree("\"beta\""));
+        boolean ok7 = (r7a && r7b) && assertPtrEquals.apply("/top", "[\"alpha\",\"beta\"]");
+        if (ok7) passed++; pf.accept("[7] $.top array semantics", ok7);
 
-        // 8) Non-direct (slice): $.a.b.c[1:3] -> (no change expected with your current code)
+        // [9] Direct: nested quoted keys
         total++;
-        System.out.println("[8] Non-Direct $.a.b.c[1:3]  (expect no change)");
-        boolean r8 = setValue(root, "$.a.b.c[1:3]", mapper.readTree("66"));
-        boolean ok8r = showRetFalse.apply(r8);
-        boolean ok8v = assertPtrEquals.apply("/a/b/c", "[7,2,99]"); // unchanged
-        boolean ok8 = ok8r && ok8v; if (ok8) passed++; pf.accept("[8] $.a.b.c[1:3]", ok8);
+        System.out.println("[9] Direct a.'dept'.\"team members\"  (overwrite to {\"count\":3})");
+        root.with("a").putObject("dept");
+        boolean r9 = setValue(root, "$.a.'dept'.\"team members\"", mapper.readTree("{\"count\":3}"));
+        boolean ok9 = r9 && assertPtrEquals.apply("/a/dept/team members", "{\"count\":3}");
+        if (ok9) passed++; pf.accept("[9] nested quoted keys", ok9);
 
-        // 9) Non-direct (empty wildcard): $.data[] -> (no change expected with your current code)
-        total++;
-        System.out.println("[9] Non-Direct $.data[]  (expect no change)");
-        boolean r9 = setValue(root, "$.data[]", mapper.readTree("\"ignored\""));
-        boolean ok9r = showRetFalse.apply(r9);
-        boolean ok9v = assertPtrEquals.apply("/data", "[{\"child\":{\"name\":\"ZZZ\"}},{\"child\":{\"name\":\"ZZZ\"}}]"); // unchanged
-        boolean ok9 = ok9r && ok9v; if (ok9) passed++; pf.accept("[9] $.data[]", ok9);
-
-        // ===== ERROR / EDGE =====
-
-        // 10) Invalid JSONata: $.a..b -> expect false and no mutation
-        total++;
-        System.out.println("[10] Error $.a..b  (invalid JSONata; expect no change and false)");
-        String before10 = pp.apply(root);
-        boolean r10 = setValue(root, "$.a..b", mapper.readTree("\"boom\""));
-        boolean ok10r = showRetFalse.apply(r10);
-        String after10 = pp.apply(root);
-        boolean ok10v = before10.equals(after10); // full-tree unchanged
-        System.out.println("Expected (value): <unchanged tree>");
-        System.out.println("Actual   (value): <" + (ok10v ? "unchanged" : "changed") + ">");
-        boolean ok10 = ok10r && ok10v; if (ok10) passed++; pf.accept("[10] $.a..b", ok10);
-
-        // 11) Non-direct: $.data[].child -> replace each child object
-        total++;
-        System.out.println("[11] Non-Direct $.data[].child  (overwrite each child to {\"note\":\"multi\"})");
-        boolean r11 = setValue(root, "$.data[].child", mapper.readTree("{\"note\":\"multi\"}"));
-        boolean ok11r = showRet.apply("", r11);
-        boolean ok11v = assertPtrEquals.apply("/data", "[{\"child\":{\"note\":\"multi\"}},{\"child\":{\"note\":\"multi\"}}]");
-        boolean ok11 = ok11r && ok11v; if (ok11) passed++; pf.accept("[11] $.data[].child", ok11);
-
-        // 12) Confirm c is still [7,2,99]
-        total++;
-        System.out.println("[12] Sanity check $.a.b.c");
-        boolean ok12 = assertPtrEquals.apply("/a/b/c", "[7,2,99]");
-        if (ok12) passed++; pf.accept("[12] $.a.b.c unchanged", ok12);
-
+        // Summary
         System.out.println("==== SUMMARY ====");
         System.out.println("Passed " + passed + " / " + total + " tests");
     }
