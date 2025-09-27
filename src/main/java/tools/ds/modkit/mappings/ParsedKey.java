@@ -62,7 +62,12 @@ public class ParsedKey {
 
     }
 
-    public static boolean setValue(ObjectNode root, ParsedKey key, Object value) {
+
+    public static List<JsonNode> getValues(ObjectNode root, ParsedKey key, Object value) {
+
+    }
+
+    public static void setValue(ObjectNode root, ParsedKey key, Object value) {
         if (key.isDirectPath) {
             if (key.tokenCount < 3) {
                 JsonNode jsonNode = root.get(key.topLevelFieldName);
@@ -75,28 +80,30 @@ public class ParsedKey {
                 } else {
                     newArrayNode = (ArrayNode) jsonNode;
                 }
-
                 int topArrayIndex = key.topArrayIndex == null ? 0 : key.topArrayIndex;
 
-                ObjectNode parentObject = (ObjectNode) getWithExpression(root, key.topLevelFieldName + "[" + topArrayIndex + "]");
-                if (parentObject == null) {
-                    JsonNode valueToAdd = key.tokenCount == 1 ? MAPPER.valueToTree(value) : MAPPER.createObjectNode();
-                    if (key.topArrayIndex == null)
-                        newArrayNode.add(valueToAdd);
-                    else
-                        ensureIndex(newArrayNode, topArrayIndex, valueToAdd);
+                if (key.tokenCount == 1) {
+                    ensureIndex(newArrayNode, topArrayIndex, MAPPER.valueToTree(value), true);
+                }
+                ObjectNode topProperty = (ObjectNode) ensureIndex(newArrayNode, topArrayIndex, MAPPER.createObjectNode(), false);
+
+                JsonNode lastProperty = topProperty.get(key.lastFieldName);
+                if (lastProperty == null && key.lastArrayIndex != null) {
+                    lastProperty = MAPPER.createArrayNode();
+                    topProperty.set(key.lastFieldName, lastProperty);
                 }
 
-                if (key.tokenCount == 2) {
-                    parentObject = parentObject != null ? parentObject : (ObjectNode) getWithExpression(root, key.topLevelFieldName + "[" + topArrayIndex + "]");
-                    JsonNode lastProperty = parentObject.get(key.lastFieldName);
-                    if (lastProperty instanceof ArrayNode lastArrayNode) {
-                        int lastArrayIndex = key.lastArrayIndex == null ? 0 : key.lastArrayIndex;
-                        ensureIndex(lastArrayNode, lastArrayIndex, MAPPER.valueToTree(value));
-                    } else
-                        parentObject.set(key.lastFieldName, MAPPER.valueToTree(value));
+                if (lastProperty instanceof ArrayNode lastArrayNode) {
+                    int lastArrayIndex = key.lastArrayIndex == null ? 0 : key.lastArrayIndex;
+                    ensureIndex(lastArrayNode, lastArrayIndex, MAPPER.valueToTree(value), true);
+                } else {
+                    if (key.lastArrayIndex != null)
+                        throw new RuntimeException("," + key.lastFieldName + "' is not an Array but attempted to set it as an Array");
+                    topProperty.set(key.lastFieldName, MAPPER.valueToTree(value));
                 }
-            } else {
+
+            }
+            else {
                 JsonNode node = getWithExpression(root, key.fullPath);
                 if (node instanceof ArrayNode arrayNode) {
                     arrayNode.add(MAPPER.valueToTree(value));
@@ -106,7 +113,6 @@ public class ParsedKey {
                 }
             }
         }
-        return true;
     }
 
 
@@ -154,13 +160,21 @@ public class ParsedKey {
         }
     }
 
-    public static void ensureIndex(ArrayNode array, int index, JsonNode value) {
+    public static JsonNode ensureIndex(ArrayNode array, int index, JsonNode value, boolean forceOverwrite) {
         if (array == null || index < 0) {
             throw new IllegalArgumentException("ArrayNode is null or index < 0");
         }
         while (array.size() <= index) {
             array.add(NullNode.instance);
         }
-        array.set(index, value == null ? NullNode.instance : value);
+        JsonNode current = array.get(index);
+
+        if (forceOverwrite || current == null) {
+            array.set(index, value == null ? NullNode.instance : value);
+            return value;
+        }
+        return current;
     }
+
+
 }
