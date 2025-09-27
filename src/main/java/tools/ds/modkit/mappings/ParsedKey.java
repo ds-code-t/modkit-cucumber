@@ -3,10 +3,13 @@ package tools.ds.modkit.mappings;
 import com.api.jsonata4java.expressions.Expressions;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -33,7 +36,6 @@ public class ParsedKey {
     private static final Pattern PATTERN = Pattern.compile("^(.*?)(?:\\s(as-[A-Z]+))?$");
 
     public ParsedKey(String key) {
-
         Matcher m = PATTERN.matcher(key.strip());
         m.matches(); // always true
         this.suffix = m.group(2); // may be null if no suffix
@@ -63,8 +65,14 @@ public class ParsedKey {
     }
 
 
-    public static List<JsonNode> getValues(ObjectNode root, ParsedKey key, Object value) {
-
+    public static List<JsonNode> getValues(ObjectNode root, ParsedKey key) {
+        Expressions e = null;
+        try {
+            e = Expressions.parse(key.fullPath);
+            return asList(e.evaluate(root));
+        } catch (Exception ex) {
+            return new ArrayList<>();
+        }
     }
 
     public static void setValue(ObjectNode root, ParsedKey key, Object value) {
@@ -102,8 +110,7 @@ public class ParsedKey {
                     topProperty.set(key.lastFieldName, MAPPER.valueToTree(value));
                 }
 
-            }
-            else {
+            } else {
                 JsonNode node = getWithExpression(root, key.fullPath);
                 if (node instanceof ArrayNode arrayNode) {
                     arrayNode.add(MAPPER.valueToTree(value));
@@ -127,7 +134,7 @@ public class ParsedKey {
     }
 
 
-    private static final Pattern INDEX_PATTERN = Pattern.compile("#[\\d:,]+");
+    private static final Pattern INDEX_PATTERN = Pattern.compile("#[\\d:,-]+");
     private static final Pattern INT_PATTERN = Pattern.compile("\\d+");
 
     public static String preParseKey(String key) {
@@ -177,4 +184,18 @@ public class ParsedKey {
     }
 
 
+    private static final JsonNodeFactory F = JsonNodeFactory.instance;
+
+    public static List<JsonNode> asList(JsonNode node) {
+        if (node == null) {
+            return Collections.emptyList();
+        }
+        if (node.isArray()) {
+            ArrayNode arr = (ArrayNode) node;
+            List<JsonNode> list = new ArrayList<>(arr.size());
+            arr.forEach(list::add);
+            return list;
+        }
+        return Collections.singletonList(node);
+    }
 }
