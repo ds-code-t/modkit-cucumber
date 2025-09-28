@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static java.util.Arrays.asList;
 import static tools.ds.modkit.mappings.NodeMap.MAPPER;
 
 public class ParsedKey {
@@ -123,7 +124,19 @@ public class ParsedKey {
     }
 
 
-    public static JsonNode getWithExpression(ObjectNode root, String expression) {
+    public static java.util.List<JsonNode> evalToList(JsonNode root, String expr) {
+        JsonNode r = getWithExpression(root, expr);
+        if (r == null) return java.util.List.of();
+        if (r.isArray()) {
+            java.util.ArrayList<JsonNode> out = new java.util.ArrayList<>();
+            r.forEach(out::add);
+            return out;
+        }
+        return java.util.List.of(r);
+    }
+
+
+    public static JsonNode getWithExpression(JsonNode root, String expression) {
         Expressions e = null;
         try {
             e = Expressions.parse(expression);
@@ -140,7 +153,7 @@ public class ParsedKey {
     public static String preParseKey(String key) {
         return rewrite(key.replaceAll("\\s*([{}\\[\\].#:,-])\\s*", "$1"))
                 .replaceAll("(^[A-Za-z0-9_]+)([^\\[].*|$)", "$1[-1]$2")
-                .replaceAll("\\[*\\]", "")
+                .replaceAll("\\[\\*\\]", "")
                 ;
     }
 
@@ -184,18 +197,4 @@ public class ParsedKey {
     }
 
 
-    private static final JsonNodeFactory F = JsonNodeFactory.instance;
-
-    public static List<JsonNode> asList(JsonNode node) {
-        if (node == null) {
-            return Collections.emptyList();
-        }
-        if (node.isArray()) {
-            ArrayNode arr = (ArrayNode) node;
-            List<JsonNode> list = new ArrayList<>(arr.size());
-            arr.forEach(list::add);
-            return list;
-        }
-        return Collections.singletonList(node);
-    }
 }
