@@ -75,14 +75,15 @@ public final class Tokenized {
 
 
     public JsonNode setWithPath(ObjectNode root, Object finalValue, Tokenized... tokenizeds) {
-        JsonNode currentValue = MAPPER.valueToTree(finalValue);
-        for (int t = tokenizeds.length - 1; t >= 0; t--) {
+        JsonNode currentValue = root;
+        Tokenized lastTokenized = tokenizeds[tokenizeds.length - 1];
+        currentValue = lastTokenized.setWithPath(finalValue);
+        for (int t = tokenizeds.length - 2; t > 0; t--) {
             Tokenized tokenize = tokenizeds[t];
             currentValue = tokenize.setWithPath(currentValue);
         }
-        String firstToken  = tokenizeds[0].tokens.getFirst();
-        root.set(firstToken, currentValue.get(firstToken);
-        return root;
+        Tokenized firstTokenized = tokenizeds[0];
+        return firstTokenized.setWithPath(root, currentValue);
     }
 
     public JsonNode setWithPath(Object value) {
@@ -92,7 +93,7 @@ public final class Tokenized {
     }
 
 
-    public void setWithPath(JsonNode root, Object value) {
+    public JsonNode setWithPath(JsonNode root, Object value) {
         if (directPath) {
             JsonNode currentNode = root;
             for (int i = 0; i < tokenCount; i++) {
@@ -131,6 +132,7 @@ public final class Tokenized {
                 }
             }
         }
+        return root;
     }
 
 
