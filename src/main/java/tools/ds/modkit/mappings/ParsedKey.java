@@ -44,7 +44,7 @@ public class ParsedKey {
         isDirectPath =
                 fullPath
                         .replaceAll("\\[\\d+\\]", "")
-                        .replaceAll("%|\\{|^|=|\\[|\\.\\.", "*").contains("*");
+                        .replaceAll("%|\\{|^|=|\\[|\\.\\.|,|:|", "*").contains("*");
 
         if (isDirectPath) {
             List<String[]> tokens = Arrays.stream(fullPath.replaceAll("\\$\\.", "").split("\\."))
