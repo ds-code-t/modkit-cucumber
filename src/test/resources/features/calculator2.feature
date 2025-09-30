@@ -1,6 +1,7 @@
 Feature: Tinyscalculator2
 
-  Scenario: ssss323
+  Scenario: calling scenario 1w
+
     Given a is 1 and b is 6
 
 #  Scenario: ssss 323

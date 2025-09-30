@@ -6,7 +6,7 @@ Feature: Tiny calculator
   :: Given a is 22 and b is 6
     Given a is 2 and b is 6
 
-  Scenario: calling scenario 1
+  Scenario: calling scenario 1s
 
 #    * SET TABLE VALUES
 #      | A  | A  | A  | D  | E  |

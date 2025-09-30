@@ -1,11 +1,26 @@
 // src/main/java/tools/ds/modkit/blackbox/CtorRegistryDSL.java
 package tools.ds.modkit.blackbox;
 
+import io.cucumber.core.backend.Backend;
+import io.cucumber.core.backend.Glue;
+
+import io.cucumber.core.runner.Options;
+import io.cucumber.java.bs.A;
+import tools.ds.modkit.coredefinitions.GeneralSteps;
 import tools.ds.modkit.trace.InstanceRegistry;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+
+import static tools.ds.modkit.blackbox.BlackBoxBootstrap.K_JAVABACKEND;
+import static tools.ds.modkit.blackbox.BlackBoxBootstrap.K_RUNNER;
+import static tools.ds.modkit.state.ScenarioState.getScenarioState;
+import static tools.ds.modkit.util.Reflect.getProperty;
+import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 
 public final class CtorRegistryDSL {
     private CtorRegistryDSL() {
@@ -45,19 +60,48 @@ public final class CtorRegistryDSL {
         globalRegisterConstructed(Arrays.asList((Object[]) targets));
     }
 
-    /* ================== Internals ================== */
 
     private static void registerCommon(List<?> targets, boolean global, Object... extraKeys) {
         if (targets == null || targets.isEmpty()) return;
 
-        for (Object t : targets) {
-            final String fqcn = toFqcn(t);
+        for (Object target : targets) {
+            System.out.println("@@target: " + target);
+//            if(target.getClass())
+
+            final String fqcn = toFqcn(target);
             if (fqcn == null || fqcn.isEmpty()) continue;
+
 
             Registry.register(
                     Plans.onCtor(fqcn, 0) // arg count is irrelevant for afterInstance (Weaver matches all ctors)
                             .afterInstance(self -> {
+//                                if (!Registry.firstTimeForCtor(ctorKey, self)) return;
                                 if (self == null) return;
+                                System.out.println("@@target2: " + self
+                                        + " loader=" + System.identityHashCode(self.getClass().getClassLoader())
+                                        + " thread=" + Thread.currentThread().getName());
+
+                                if (self.getClass().getCanonicalName().equals(K_RUNNER)) {
+                                    //                                    System.out.println("@@foundRunner " + self);
+                                    Options runnerOptions = (Options) getProperty(self, "runnerOptions");
+                                    List<URI> currentGluePaths = (List<URI>) getProperty(runnerOptions, "glue");
+                                    Glue glue = (Glue) getProperty(self, "glue");
+                                    Collection<? extends Backend> backends = (Collection<? extends Backend>) getProperty(self, "backends");
+                                    List<URI> newGluePaths = toGluePath(GeneralSteps.class);
+                                    newGluePaths.removeAll(currentGluePaths);
+                                    currentGluePaths.addAll(newGluePaths);
+                                    for (Backend backend : backends) {
+                                        backend.loadGlue(glue, newGluePaths);
+                                    }
+                                }
+
+//                                if (self.getClass().getCanonicalName().equals(K_JAVABACKEND)) {
+//                                    invokeAnyMethod(self,
+//                                            "loadGlue",
+//                                            getScenarioState().getRuntimeOptions().getGlue(),
+//                                            toGluePath(GeneralSteps.class));
+//                                }
+
 
                                 // Build keys: Class, FQCN, plus any extras provided by the caller
                                 List<Object> keys = new ArrayList<>(2 + extraKeys.length);
@@ -86,4 +130,20 @@ public final class CtorRegistryDSL {
         if (t instanceof CharSequence) return t.toString();
         return t.getClass().getName();
     }
+
+
+    public static List<URI> toGluePath(Class<?>... classes) {
+        List<URI> gluePaths = new ArrayList<>();
+
+        for (Class<?> clazz : classes) {
+            String pkg = clazz.getPackageName().replace('.', '/');
+            try {
+                gluePaths.add(new URI("classpath:/" + pkg));
+            } catch (URISyntaxException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return gluePaths;
+    }
+
 }

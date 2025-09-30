@@ -1,9 +1,14 @@
 package tools.ds.modkit.blackbox;
 
 import io.cucumber.plugin.event.PickleStepTestStep;
+import tools.ds.modkit.coredefinitions.GeneralSteps;
+import tools.ds.modkit.coredefinitions.MetaSteps;
 import tools.ds.modkit.extensions.StepExtension;
 import tools.ds.modkit.util.CallScope;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -12,6 +17,7 @@ import java.util.regex.Pattern;
 import static tools.ds.modkit.blackbox.Plans.*;
 import static tools.ds.modkit.state.ScenarioState.*;
 import static tools.ds.modkit.util.KeyFunctions.getUniqueKey;
+import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 
 
 public final class BlackBoxBootstrap {
@@ -32,6 +38,7 @@ public final class BlackBoxBootstrap {
     public static final String K_PICKLE = "io.cucumber.core.gherkin.messages.GherkinMessagesPickle";
     public static final String K_SCENARIO = "io.cucumber.messages.types.Scenario";
     public static final String K_RUNNER = "io.cucumber.core.runner.Runner";
+    public static final String K_JAVABACKEND = "io.cucumber.java.JavaBackend";
 
     public static final String metaFlag = "\u206A-TEXT";
 
@@ -64,9 +71,26 @@ public final class BlackBoxBootstrap {
                 List.of(
                         K_RUNTIME,
                         K_FEATUREPARSER,
-                        K_FEATURESUPPLIER
+                        K_FEATURESUPPLIER,
+                        K_JAVABACKEND
                 )
         );
+
+
+//        Registry.register(
+//                on("io.cucumber.java.JavaBackend", "loadGlue", 2)
+//                        .before(args -> {
+//
+////                            System.out.println("@@GLue paths1: " +args[1]);
+////                            List<URI> gluePaths = new ArrayList<>();
+////
+////                            gluePaths.add(toGluePath(MetaSteps.class));
+////                            gluePaths.addAll( (List<URI>) args[1]);
+////                            args[1] = gluePaths;
+////                            System.out.println("@@GLue paths2: " +args[1]);
+//                        })
+//                        .build()
+//        );
 
 
         // Skip TestCase.emitTestCaseStarted(..) when executionId matches a configured UUID
@@ -330,6 +354,7 @@ public final class BlackBoxBootstrap {
 
 
     }
+
 
 
     private BlackBoxBootstrap() {

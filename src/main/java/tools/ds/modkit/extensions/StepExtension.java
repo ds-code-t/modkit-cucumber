@@ -401,6 +401,8 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
     public StepExtension run(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
         System.out.println("@@run-step: " + getStepText());
+        System.out.println("@@run-getRuntimeOptions: " + getScenarioState().getRuntimeOptions());
+        System.out.println("@@run-getGlue: " + getScenarioState().getRuntimeOptions().getGlue());
 
 
         if (nextSibling != null && nextSibling.metaStep) {
@@ -430,7 +432,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
         executionMode = shouldRun() ? RUN(executionMode) : SKIP(executionMode);
 
-        Object returnObj = isScenarioNameStep ? executionMode : invokeAnyMethod(delegate, "run", testCase, bus, state, executionMode);
+        Object returnObj = invokeAnyMethod(delegate, "run", testCase, bus, state, executionMode);
         System.out.println("@@stepResults== " + getStepText());
         List<Result> results = ((List<Result>) getProperty(state, "stepResults"));
         result = results.getLast();

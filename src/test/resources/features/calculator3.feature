@@ -1,4 +1,4 @@
 Feature: Tinyscalculatow3
 
-  Scenario: ssss323s
-    Given a is 1 and b is 62
+  Scenario: ssss323sss
+    * save "zzzzzzzzzzz-1" as "A"
