@@ -3,14 +3,17 @@ Feature: Tiny calculator
 
   Scenario: calling scenario 1
 
-    * SET TABLE VALUES
-      | A  | A  | A  | D  | E  |
-      | a1 | b1 | c1 | d1 | e1 |
-      | a2 | b2 | c2 | d2 | e2 |
-      | a3 | b3 | c3 | d3 | e3 |
+#    * SET TABLE VALUES
+#      | A  | A  | A  | D  | E  |
+#      | a1 | b1 | c1 | d1 | e1 |
+#      | a2 | b2 | c2 | d2 | e2 |
+#      | a3 | b3 | c3 | d3 | e3 |
 
 
-#    * save "c-1" as "C"
+    * save "zzzzzzzzzzz-1" as "A"
+    * save "zzzzzzzzzzz-2" as "A"
+    * save "zzzzzzzzzzz-3" as "A"
+    * save "zzzzzzzzzzz-4" as "A"
 #    * save "c-2" as "C"
 #    * save "c-3" as "C"
 #    * save "c-4" as "C"
@@ -18,7 +21,10 @@ Feature: Tiny calculator
 
 #    Given the string "<C #2>" is attached as "A"
 
-    Given the string "<ROW[*] .A>" is attached as "A"
+    Given the string "2221qqqq" is attached as "<A[-2]>"
+#    Given the string "<ROW[2] .A as-LIST>" is attached as "<A[-2]>"
+#    Given the string "<ROW[1] .A as-LIST>" is attached as "A"
+#    Given the string "<ROW[*] .A as-LIST>" is attached as "A"
 #    Given the string "<A #1> <B #2> <C #3> <C #3> <C #4> <C #5> <C #6>" is attached as "A"
 #    Given the string "<A #1> <B #1> <C #1> <D #1>" is attached as "<B>"
 #    Given the string "<A #2> <B #2> <C #2> <D #2>" is attached as "<B>"

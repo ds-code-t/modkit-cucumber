@@ -64,6 +64,11 @@ public class StepDefs {
         System.out.println("@@b: " + b);
     }
 
+//    @Given("save {string} as {string}")
+//    public void saveString(String a, String b) throws InterruptedException {
+//            getScenarioState().put(a, b);
+//    }
+
     @Given("a is {int} and b is {int}")
     public void a_is_and_b_is(int a, int b) throws InterruptedException {
         Thread.sleep(500L);

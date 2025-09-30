@@ -8,17 +8,19 @@ import io.cucumber.messages.types.TableRow;
 
 import java.util.*;
 
-import static tools.ds.modkit.util.CucumberQueryUtil.examplesOf;
-import static tools.ds.modkit.util.CucumberQueryUtil.messagePickle;
+import static tools.ds.modkit.util.CucumberQueryUtil.*;
 
 public class TableUtils {
 
     public static <K, V>
     LinkedListMultimap<String, LinkedListMultimap<K, V>> toRowsMultimap(DataTable dataTable) {
+        System.out.println("@@toRowsMultimap:\n" + dataTable);
         List<LinkedListMultimap<K, V>> rowList = toListOfMultimap(dataTable);
         LinkedListMultimap<String, LinkedListMultimap<K, V>> returnMap = LinkedListMultimap.create();
         assert rowList != null;
+        rowList.forEach(r -> System.out.println("@@r- " + r));
         rowList.forEach(r -> returnMap.put("ROW", r));
+        System.out.println("@@returnMap: " + returnMap);
         return returnMap;
     }
 

@@ -37,7 +37,7 @@ public class GlobalMappings extends NodeMap {
     }
 
     @Override
-    public LinkedListMultimap<String, Object> get(String key) {
+    public Object get(String key) {
         r.lock();
         try {
             return super.get(key);

@@ -1,7 +1,10 @@
 package tools.ds.modkit.mappings;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.collect.LinkedListMultimap;
+import tools.ds.modkit.mappings.queries.Tokenized;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -9,6 +12,7 @@ import java.util.regex.Pattern;
 
 import static tools.ds.modkit.mappings.AviatorUtil.eval;
 import static tools.ds.modkit.mappings.AviatorUtil.evalToBoolean;
+import static tools.ds.modkit.mappings.NodeMap.MAPPER;
 //import static tools.ds.modkit.mappings.KeyParser.Kind.SINGLE;
 //import static tools.ds.modkit.mappings.KeyParser.parseKey;
 
@@ -89,8 +93,8 @@ public abstract class MappingProcessor implements Map<String, Object> {
 
     public String resolveWholeText(String input) {
         System.out.println("@@===resolveWholeText: " + input);
+        QuoteParser parsedObj = new QuoteParser(input);
         try {
-            QuoteParser parsedObj = new QuoteParser(input);
             parsedObj.setMasked(resolveAll(parsedObj.masked()));
             System.out.println("@@===parsedObj: " + parsedObj);
             for (var e : parsedObj.entrySet()) {
@@ -103,7 +107,7 @@ public abstract class MappingProcessor implements Map<String, Object> {
             }
             return parsedObj.restore();
         } catch (Throwable t) {
-            throw new RuntimeException("Could not resolve'" + input + "'", t);
+            return parsedObj.restore();
         }
     }
 
@@ -129,34 +133,25 @@ public abstract class MappingProcessor implements Map<String, Object> {
         }
     }
 
-    private static final Pattern AS_TYPE_PATTERN =
-            Pattern.compile("^(.*?)(\\s+as-[A-Z]+)$");
 
     private String resolveByMap(String s) {
         System.out.println("@@===resolveByMap: " + s);
-        System.out.println("@@toZeroBasedSeries1" + s);
-        String mainText = toZeroBasedSeries(s).trim();
-        System.out.println("@@toZeroBasedSeries2 " + mainText);
-        String suffix = "";
-        Matcher suffixMatcher = AS_TYPE_PATTERN.matcher(mainText);
-        if (suffixMatcher.matches()) {
-            mainText = suffixMatcher.group(1);
-            suffix = suffixMatcher.group(2);   // always non-null here
-        }
+
 
         try {
-            Matcher m = ANGLE.matcher(mainText);
+            Matcher m = ANGLE.matcher(s);
             StringBuffer sb = new StringBuffer();
             Object replacement = null;
             while (m.find()) {
-
                 System.out.println("@@$$m.group(1): " + m.group(1));
+
+                Tokenized tokenized = new Tokenized(m.group(1));
+
 
                 for (NodeMap map : valuesInKeyOrder()) {
                     if (map == null) continue;
-                    List<?> list = map.getValues(m.group(1));
-                    if (list == null || list.isEmpty()) continue;
-                    replacement = suffix.isEmpty() ? list.get(list.size() - 1) : (suffix.equals("as-LIST") ? list : list.get(list.size() - 1));
+                    replacement = map.get(tokenized);
+                    System.out.println("@@replacement=== " + replacement);
                     if (replacement != null)
                         break;
                 }
@@ -166,7 +161,7 @@ public abstract class MappingProcessor implements Map<String, Object> {
             if (replacement == null)
                 return s;
 
-            m.appendReplacement(sb, String.valueOf(replacement));
+            m.appendReplacement(sb, getStringValue(replacement));
 
             m.appendTail(sb);
             return sb.toString();
@@ -195,12 +190,12 @@ public abstract class MappingProcessor implements Map<String, Object> {
 
     @Override
     public Object get(Object key) {
-        if(key==null)
+        if (key == null)
             throw new RuntimeException("key cannot be null");
         for (NodeMap map : maps.values()) {
-            List<?> list = map.getValues(String.valueOf(key));
-            if (list.isEmpty()) continue;
-            return list.get(list.size() - 1);
+            Object returnObj = map.get(String.valueOf(key));
+            if (returnObj != null)
+                return returnObj;
         }
         return null;
     }
@@ -263,28 +258,22 @@ public abstract class MappingProcessor implements Map<String, Object> {
     }
 
 
-    private static final Pattern SERIES = Pattern.compile("#\\s*([\\d\\s,\\-:]+)");
-
-    public static String toZeroBasedSeries(String input) {
-        return SERIES.matcher(input).replaceAll(mr -> {
-                    String seq = mr.group(1);                 // e.g. "1-2 , 6"
-                    StringBuilder out = new StringBuilder("[");
-                    for (String token : seq.replaceAll("\\s+", "")
-                            .split("(?=[,\\-:])|(?<=[,\\-:])")) {
-                        if (token.equals(",") || token.equals("-") || token.equals(":")) {
-                            out.append(token);
-                        } else {
-                            int n = Integer.parseInt(token);
-                            if (n == 0) throw new IllegalArgumentException("Index cannot be 0 when using '#' syntax");
-                            out.append(n - 1);
-                        }
-                    }
-                    out.append(']');
-
-                    return out.toString();
-                }).replaceAll("\\s+\\[", "[")   // remove whitespace before '['
-                .replaceAll("]\\s+", "]")// remove whitespace after ']'
-                .replaceAll("\\s*\\.\\s*", ".");
+    public static String getStringValue(Object obj) {
+        if (obj instanceof List<?> list) {
+            if (list.isEmpty()) return String.valueOf(obj);
+            if (list.getFirst() instanceof JsonNode)
+                return String.valueOf(((List<JsonNode>) list).stream().map(JsonNode::asText).toList());
+        }
+        if (obj instanceof JsonNode jsonNode)
+            return jsonNode.asText();
+        return String.valueOf(obj);
     }
+
+//    public static boolean isMatch(Object obj) {
+//        if(obj == null)
+//            return false;
+//        if(obj instanceof ArrayNode arrayNode)
+//
+//    }
 
 }
