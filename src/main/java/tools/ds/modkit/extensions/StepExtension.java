@@ -110,20 +110,24 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
     public StepExtension(PickleStepTestStep step, StepExecution stepExecution,
                          io.cucumber.core.gherkin.Pickle pickle, Map<String, Object> configs) {
-        System.out.println("@@step: " + step.getStepText());
-        if (step.getCodeLocation().startsWith(ModularScenarios.class.getCanonicalName() + ".")) {
+        String codeLocation = step.getCodeLocation();
+        if(codeLocation ==null)
+            codeLocation="";
+        if (codeLocation.startsWith(ModularScenarios.class.getCanonicalName() + ".")) {
             this.overRideUUID = skipLogging;
             this.letChildrenInheritMaps = false;
         }
-        this.stepTextOverRide = (String) configs.getOrDefault("stepTextOverRide", null);
-        this.isScenarioNameStep = (boolean) configs.getOrDefault("isScenarioNameStep", false);
 
+        this.stepTextOverRide = (String) configs.getOrDefault("stepTextOverRide", null);
+        System.out.println("@@##$step: " + step.getStep().getText());
+        this.isScenarioNameStep = step.getStep().getText().contains(defaultMatchFlag+ "Scenario");
+//        this.isScenarioNameStep = (boolean) configs.getOrDefault("isScenarioNameStep", false);
+        System.out.println("@@isScenarioNameStep: " + isScenarioNameStep);
         this.parentPickle = pickle;
 
-        this.isCoreStep = step.getCodeLocation().startsWith(MetaSteps.class.getPackageName() + ".");
+        this.isCoreStep = codeLocation.startsWith(MetaSteps.class.getPackageName() + ".");
 
         this.method = (Method) getProperty(step, "definitionMatch.stepDefinition.stepDefinition.method");
-        System.out.println("@@this.method:: " + method);
 
 //        this.pickleKey = getPickleKey(pickle);
         this.stepExecution = stepExecution;
@@ -144,7 +148,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
             stepTags.add(matcher.group().substring(1).replaceAll("\\[|\\]", ""));
         }
 
-
+        System.out.println("@@stepTags: " + stepTags);
         for (String s : stepTags)
             try {
                 stepFlags.add(StepFlag.valueOf(s.trim()));
@@ -248,10 +252,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
     public void setExecutionArguments(List<Object> executionArguments) {
         this.executionArguments = executionArguments;
-        System.out.println("@@step text::- " + getStepText());
-        System.out.println("@@executionArguments.size()::- " + executionArguments.size());
         this.stepDataTable = executionArguments.stream().filter(DataTable.class::isInstance).map(DataTable.class::cast).findFirst().orElse(null);
-        System.out.println("@@ this.stepDataTable::- " + this.stepDataTable);
     }
 
     private List<Object> executionArguments;
@@ -259,7 +260,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
 
     public StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling) {
-        System.out.println("@@updateStep=1 : " + getStepText());
 
         if (parentStep != null) {
             scenarioMaps = Stream.concat(parentStep.getScenarioMapInheritance().stream(), scenarioMaps.stream())
@@ -424,11 +424,13 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
         getScenarioState().register(this, getUniqueKey(this));
 
+        System.out.println("@@skipped1: " + skipped);
         skipped = stepExecution.isScenarioComplete();
+        System.out.println("@@skipped2: " + skipped);
 
         executionMode = shouldRun() ? RUN(executionMode) : SKIP(executionMode);
 
-        Object returnObj = invokeAnyMethod(delegate, "run", testCase, bus, state, executionMode);
+        Object returnObj = isScenarioNameStep ? executionMode : invokeAnyMethod(delegate, "run", testCase, bus, state, executionMode);
         System.out.println("@@stepResults== " + getStepText());
         List<Result> results = ((List<Result>) getProperty(state, "stepResults"));
         result = results.getLast();

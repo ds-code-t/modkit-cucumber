@@ -40,7 +40,6 @@ public class StepExecution {
     private final StepExtension rootScenarioNameStep;
 
     public StepExecution(TestCase testCase) {
-        System.out.println("@@StepExecutions:");
         List<PickleStepTestStep> pSteps = (List<PickleStepTestStep>) getProperty(testCase, "testSteps");
         setFlag(pSteps.get(pSteps.size() - 1), ObjDataRegistry.ObjFlags.LAST);
 
@@ -50,11 +49,6 @@ public class StepExecution {
         NodeMap scenarioMap = scenarioState.getScenarioMap(scenarioState.getScenarioPickle());
         if (scenarioMap != null)
             steps.forEach(s -> s.addScenarioMaps(scenarioMap));
-        if (scenarioMap != null)
-            System.out.println("@@scenarioMap a1: " + scenarioMap.get("A"));
-        System.out.println("@@pSteps: " + pSteps.size());
-        System.out.println("@@pStep getStepText: " + steps.getFirst().getStepText());
-
 
         Map<Integer, StepExtension> nestingMap = new HashMap<>();
 
@@ -91,13 +85,9 @@ public class StepExecution {
             }
             if (parentStep != null) {
                 currentStep.setParentStep(parentStep);
-//                parentStep.childSteps.add(currentStep);
             }
-            System.out.println("@@000 currentStep: " + currentStep.getStepText());
-            System.out.println("@@000 parentStep: " + (parentStep == null ? "END" : parentStep.getStepText()));
 
             nestingMap.put(currentNesting, currentStep);
-//            System.out.println("@@000 previousSibling: " + (previousSibling == null || previousSibling.nextSibling == null ? "END" : previousSibling.nextSibling.getStepText()));
             lastNestingLevel = currentNesting;
 
         }
@@ -125,6 +115,7 @@ public class StepExecution {
     }
 
     public void setScenarioHardFail() {
+        System.out.println("@@setScenarioHardFail");
         this.scenarioHardFail = true;
         setScenarioComplete();
     }
@@ -144,22 +135,11 @@ public class StepExecution {
 
     public void runSteps(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
 
-        System.out.println("@@runSteps");
-
-        System.out.println("@@gherkinView: " + getScenarioState().gherkinView);
-        System.out.println("\n@@getRuntimeOptions: " + getScenarioState().getRuntimeOptions());
-//        System.out.println("\n@@getTagExpressions(): " +     getScenarioState().getTagExpressions());
-        System.out.println("\n@@getTags(): " + getScenarioState().getTags());
-//        System.out.println("\n@@getRuntime(): " +     getScenarioState().getRuntime());
-        System.out.println("\n@@getRuntime(): " + getRuntime());
-
-        System.out.println("\n@@getFeatureSupplier(): " + getFeatureSupplier());
 
 
         setFlag(testCase, ObjDataRegistry.ObjFlags.RUNNING);
 
         StepExtension currentStep = steps.get(0);
-        System.out.println("@@### runsteps!! " + currentStep.getStepText());
 
         rootScenarioNameStep.run(testCase, bus, state, executionMode);
 

@@ -14,6 +14,12 @@ import static tools.ds.modkit.util.TableUtils.*;
 public class GeneralSteps {
     @Given("^save \"(.*)\" as \"(.*)\"$")
     public static void saveValues(String value, String key) {
+        System.out.println("SAve values");
+        try {
+            Thread.sleep(100L);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         getScenarioState().put(key, value);
     }
 

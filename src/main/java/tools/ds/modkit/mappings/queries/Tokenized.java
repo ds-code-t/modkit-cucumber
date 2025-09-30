@@ -39,7 +39,6 @@ public final class Tokenized {
     public static String topArrayFlag = metaFlag + "_topArray";
 
     public Tokenized(String inputQuery) {
-        System.out.println("\n\n@@Tokenized:: " + inputQuery);
         Matcher m = SUFFIX_PATTERN.matcher(inputQuery);
         m.matches();
         String q = m.group(1).strip();
@@ -53,16 +52,10 @@ public final class Tokenized {
                 .replaceAll("\\s*([\\(\\){}\\[\\].#:,-])\\s*", "$1");
 //                .replaceAll("\\[\\*\\]", "");
 
-        System.out.println("@@Q1: " + query);
-        System.out.println("@@Q2: " +  query.replaceAll("\\[-?\\d+\\]", ""));
         directPath = !query.replaceAll("\\[-?\\d+\\]", "")
                 .replaceAll("\\*|%|\\{|\\(|^|<|>|=|\\.\\.|,|:", "[").contains("\\[");
         tokens = Arrays.stream(query.replaceAll("(\\[[^\\[\\]]*\\])", ".$1").split("\\.")).collect(Collectors.toList());
         tokenCount = tokens.size();
-        System.out.println("@@query- " + query);
-        System.out.println("@@directPath- " + directPath);
-        System.out.println("@@tokens- " + tokens);
-        System.out.println("@@suffix- " + suffix);
         getQuery = query.replaceAll("\\." + topArrayFlag, "");
     }
 
@@ -79,10 +72,7 @@ public final class Tokenized {
     }
 
     public Object get(JsonNode root) {
-        System.out.println("@@query=: " + getQuery);
         List<JsonNode> list = getList(root, getQuery);
-        System.out.println("@@suffix=: " + getQuery);
-        System.out.println("@@list: " + list);
         if(list == null) return null;
         if (suffix == null) {
             if (list.isEmpty())

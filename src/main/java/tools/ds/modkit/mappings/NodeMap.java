@@ -48,24 +48,20 @@ public class NodeMap {
         return tokenized.getList(root);
     }
     public List<JsonNode> getAsList(String key) {
-        System.out.println("@@-getAsList=key:" + key + " - root: " + root);
         return (new Tokenized(key).getList(root));
     }
 
     public Object get(Tokenized tokenized) {
-        System.out.println("@@-get=tokenized:" + tokenized.query+ " - root: " + root);
         return  tokenized.get(root);
     }
 
 
     public Object get(String key) {
-        System.out.println("@@-get=key:" + key+ " - root: " + root);
         return  (new Tokenized(key)).get(root);
     }
 
 
     public void put(String key, Object value) {
-        System.out.println("@@nodeMape- put key: " + key + " , val: " + value);
         (new Tokenized(key)).setWithPath(root, value);
     }
 

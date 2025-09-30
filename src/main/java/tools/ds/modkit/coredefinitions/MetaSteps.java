@@ -28,7 +28,7 @@ public class MetaSteps {
 
     @Given("^"+defaultMatchFlag+"(.*)$")
     public static void matchDefault(String text) {
-        System.out.println("@@text: " + text);
+        System.out.println("@@DEFAULT_DEFINITION_text:: " + text);
     }
 
 }

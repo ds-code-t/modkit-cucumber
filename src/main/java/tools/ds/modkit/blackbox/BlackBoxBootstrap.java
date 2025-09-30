@@ -121,7 +121,6 @@ public final class BlackBoxBootstrap {
                             String original = (ret == null) ? "" : (String) ret;
                             Matcher matcher = LINE_SWAP_PATTERN.matcher(original);
                             String newStringReturn = matcher.replaceAll("$2" + metaFlag + "$1");
-                            System.out.println("@@newStringReturn : " + newStringReturn);
                             return newStringReturn;
                         })
                         .build()

@@ -17,7 +17,6 @@ public final class CtorRegistryDSL {
      * Register ctor hooks for the given targets, storing instances in the per-thread registry.
      */
     public static void threadRegisterConstructed(List<?> targets, Object... extraKeys) {
-        System.out.println("@@threadRegisterConstructed " + targets);
         registerCommon(targets, false, extraKeys);
     }
 
@@ -53,31 +52,23 @@ public final class CtorRegistryDSL {
 
         for (Object t : targets) {
             final String fqcn = toFqcn(t);
-            System.out.println("@@target: " + t);
-            System.out.println("@@fqcn: " + fqcn);
             if (fqcn == null || fqcn.isEmpty()) continue;
 
             Registry.register(
                     Plans.onCtor(fqcn, 0) // arg count is irrelevant for afterInstance (Weaver matches all ctors)
                             .afterInstance(self -> {
-                                System.out.println("@@register ctor self: " + self);
-                                System.out.println("@@extraKeys: " + Arrays.asList(extraKeys));
                                 if (self == null) return;
 
                                 // Build keys: Class, FQCN, plus any extras provided by the caller
                                 List<Object> keys = new ArrayList<>(2 + extraKeys.length);
                                 keys.add(self.getClass());
                                 keys.add(self.getClass().getName());
-                                System.out.println("@@keys: " + keys);
-                                for (Object k : extraKeys) System.out.println("@@k:: " + k);
                                 for (Object k : extraKeys) if (k != null) keys.add(k);
 
                                 Object[] arr = keys.toArray();
                                 if (global) {
                                     InstanceRegistry.globalRegister(self, arr);
                                 } else {
-                                    System.out.println("@@registering-self:  " + self);
-                                    System.out.println("@@registering-arr:  " + Arrays.asList(arr));
                                     InstanceRegistry.register(self, arr);
                                 }
                             })

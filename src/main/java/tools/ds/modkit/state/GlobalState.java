@@ -49,8 +49,6 @@ public final class GlobalState {
      * Register the same value under each provided key in the global store.
      */
     public void register(Object value, Object... keys) {
-        System.out.println("@@Global-register: " + value);
-        System.out.println("@@keys: " + Arrays.asList(keys));
         if (value == null) return;
         if (keys == null || keys.length == 0) {
             store.put(value.getClass(), value);

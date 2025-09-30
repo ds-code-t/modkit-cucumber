@@ -3,11 +3,7 @@ package tools.ds.modkit.trace;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Per-object data registry with weakly-keyed owners.
- * - For any owner object, we keep a thread-safe Map<Object,Object> "bucket".
- * - Flags are a standard entry inside that bucket.
- */
+
 public final class ObjDataRegistry {
 
     public enum ObjFlags { NOT_SET, INITIALIZING, RUNNING, COMPLETE, LAST }

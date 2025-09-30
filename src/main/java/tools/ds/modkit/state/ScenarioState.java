@@ -55,7 +55,6 @@ public final class ScenarioState {
 
     public void mergeToRunMap( LinkedListMultimap<?,?> obj){
         runMap.merge(obj);
-//        System.out.println("@@-runMap: " + runMap.get("A"));
     }
 
     public void put(Object key, Object value) {
@@ -190,8 +189,6 @@ public final class ScenarioState {
      * Register the same value under each provided key for this thread.
      */
     public void register(Object value, Object... keys) {
-        System.out.println("@@State register-value: " + value);
-        System.out.println("@@State register-keys: " + Arrays.asList(keys));
         if (value == null) return;
         if (keys == null || keys.length == 0) {
             store.put(value.getClass(), value);
@@ -227,7 +224,6 @@ public final class ScenarioState {
     }
 
     public Runner getRunner() {
-        System.out.println("@@##$#$ store : " + store);
         if (runner == null)
             return (Runner) getInstance(K_RUNNER);
         return runner;

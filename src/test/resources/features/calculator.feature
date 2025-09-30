@@ -1,5 +1,10 @@
 Feature: Tiny calculator
 
+  Scenario: ssss 323
+    Given a is 1 and b is 6
+  : Given a is 11 and b is 6
+  :: Given a is 22 and b is 6
+    Given a is 2 and b is 6
 
   Scenario: calling scenario 1
 

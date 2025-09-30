@@ -92,15 +92,11 @@ public abstract class MappingProcessor implements Map<String, Object> {
 
 
     public String resolveWholeText(String input) {
-        System.out.println("@@===resolveWholeText: " + input);
         QuoteParser parsedObj = new QuoteParser(input);
         try {
             parsedObj.setMasked(resolveAll(parsedObj.masked()));
-            System.out.println("@@===parsedObj: " + parsedObj);
             for (var e : parsedObj.entrySet()) {
-                System.out.println("@@===e: " + e);
                 char q = parsedObj.quoteTypeOf(e.getKey());
-                System.out.println("@@===q: " + q);
                 if (q == QuoteParser.SINGLE || q == QuoteParser.DOUBLE) {
                     parsedObj.put(e.getKey(), resolveAll(e.getValue()));
                 }
@@ -112,14 +108,12 @@ public abstract class MappingProcessor implements Map<String, Object> {
     }
 
     public String resolveAll(String input) {
-        System.out.println("@@===resolveAll: " + input);
         try {
             String prev;
             do {
                 prev = input;
                 if (input.contains("<")) {
                     input = resolveByMap(input);
-                    System.out.println("@@=====3: " + input);
                 } else {
                     break;
                 }

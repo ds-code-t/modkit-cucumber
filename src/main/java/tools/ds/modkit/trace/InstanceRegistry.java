@@ -21,7 +21,7 @@ public final class InstanceRegistry {
     public static void register(Object value, Object... keys) {
         System.out.println("@@Instanc## register: " + value);
         ScenarioState s = cur();
-        System.out.println("@s : " + s );
+
         if (s != null) s.register(value, keys);
     }
 

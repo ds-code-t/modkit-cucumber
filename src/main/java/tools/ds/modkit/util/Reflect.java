@@ -466,10 +466,6 @@ public final class Reflect {
 
     /** Multi-hop: supports dot paths like "a.b.c" (sets 'c' on the resolved 'b'). */
     public static boolean setProperty(Object target, String path, Object value) {
-        System.out.println("@@setProperty");
-        System.out.println("@@target: " + target);
-        System.out.println("@@path: " + path);
-        System.out.println("@@value: " + value);
         if (target == null || path == null || path.isEmpty()) return false;
 
         Object current = target;

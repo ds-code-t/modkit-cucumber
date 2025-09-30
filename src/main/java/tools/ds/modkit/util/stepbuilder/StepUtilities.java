@@ -54,8 +54,6 @@ public class StepUtilities {
     public static PickleStepTestStep createPickleStepTestStep(PickleStepArgument pickleStepArgument, java.util.List<String> astNodeIds, String id, PickleStepType pickleStepType, String stepText, String previousGivenWhenThenKeyword, io.cucumber.plugin.event.Location location, String keyword, java.util.UUID uuid, java.net.URI uri) {
         PickleStep pickleStep = createPickleStep(pickleStepArgument, astNodeIds, id, pickleStepType, stepText);
         Step gherikinMessageStep = createGherikinMessageStep(pickleStep, previousGivenWhenThenKeyword, location, keyword);
-        System.out.println("@@^pickleStep: " + pickleStep);
-        System.out.println("@@^gherikinMessageStep: " + gherikinMessageStep);
         return createPickleStepTestStep(gherikinMessageStep, uuid, uri);
     }
 
@@ -63,17 +61,8 @@ public class StepUtilities {
     public static PickleStepTestStep createScenarioPickleStepTestStep(io.cucumber.core.gherkin.Pickle pickle, PickleStepTestStep pickleStepTestStep) {
         try {
             String newStepText = defaultMatchFlag + pickle.getKeyword() + ":" + pickle.getName();
-            System.out.println("@@==createScenarioPickleStepTestStep1 pickle.getKeyword() = " + pickle.getKeyword());
-            System.out.println("@@==createScenarioPickleStepTestStep2 pickle.getName() = " + pickle.getName());
             io.cucumber.core.gherkin.Step gherikinMessageStep = (Step) pickleStepTestStep.getStep();
-            System.out.println("@@==createScenarioPickleStepTestStep3 gherikinMessageStep = " + gherikinMessageStep.getText());
-
             PickleStepTestStep step = createPickleStepTestStep(null, new ArrayList<>(), UUID.randomUUID().toString(), PickleStepType.CONTEXT, newStepText, gherikinMessageStep.getPreviousGivenWhenThenKeyword(), pickle.getLocation(), gherikinMessageStep.getKeyword(), UUID.randomUUID(), pickle.getUri());
-            System.out.println("@@==createScenarioPickleStepTestStep4 step = " + step.getStepText());
-
-            System.out.println("@@#step1: " + step);
-            System.out.println("@@#step2: " + step.getStep());
-            System.out.println("@@#step3: " + step.getStepText());
             return step;
 
         }
