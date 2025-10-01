@@ -99,10 +99,17 @@ public class AviatorFunctions {
                 return AviatorBoolean.FALSE;
             }
 
-            // Take the first arg only, since bool conversion is unary
-            String s = FunctionUtils.getStringValue(args[0], env);
-            return AviatorBoolean.valueOf(isTruthy(s));
+            // Resolve the first argument against env
+            Object resolved = args[0].getValue(env);  // <-- resolves identifiers & expressions
 
+            // If you want to keep your existing isTruthy(String) signature:
+            String s = (resolved == null || resolved == AviatorNil.NIL) ? "" : String.valueOf(resolved);
+            boolean result = isTruthy(s);  // your custom logic that takes String
+
+            // If you have isTruthy(Object), you could instead do:
+            // boolean result = isTruthy(resolved);
+
+            return AviatorBoolean.valueOf(result);
         }
     }
 

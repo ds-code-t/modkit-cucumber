@@ -85,6 +85,15 @@ public final class AviatorUtil {
     private AviatorUtil() {
     }
 
+    public static void main(String[] args) {
+        System.out.println("@@eval: " + eval("true ? 1 : 0"));
+    }
+
+
+    public static Object eval(Object expr) {
+        return eval(expr,null);
+    }
+
     /**
      * Evaluates an object by converting it to a String and running it through Aviator.
      */
@@ -92,6 +101,8 @@ public final class AviatorUtil {
         if(expr == null) return null;
         String processedExpression = preprocessExpression(expr.toString());
         System.out.println("@@@###processedExpression: " + processedExpression);
+        if(map == null)
+            return  AviatorEvaluator.execute(processedExpression);
         return  AviatorEvaluator.execute(processedExpression, map);
     }
 

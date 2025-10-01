@@ -49,7 +49,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
 
     public String evalWithStepMaps(String expression) {
-        return String.valueOf(eval(expression, parsingMap));
+        return String.valueOf(eval(expression, storedParsingMap));
     }
 
     @Override
@@ -76,9 +76,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
     private DataTable stepDataTable;
 
-    //    public void addScenarioMaps(NodeMap nodeMap) {
-//        this.scenarioMaps.add(nodeMap);
-//    }
+
     private final boolean isCoreStep;
     private final boolean isDataTableStep;
 
@@ -268,30 +266,31 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
 
     public StepExtension modifyStep(String newStepText, PickleStepArgument arg) {
-        return updateStep(parsingMap, ranParentStep, ranPreviousSibling, newStepText, arg);
+        return updateStep(storedParsingMap, storedRanParentStep, storedRanPreviousSibling, newStepText, arg);
     }
 
     public StepExtension modifyStep(String newStepText) {
-        return updateStep(parsingMap, ranParentStep, ranPreviousSibling, newStepText, null);
+        return updateStep(storedParsingMap, storedRanParentStep, storedRanPreviousSibling, newStepText, null);
     }
 
-    ParsingMap parsingMap;
-    StepExtension ranParentStep;
-    StepExtension ranPreviousSibling;
+    ParsingMap storedParsingMap;
+    StepExtension storedRanParentStep;
+    StepExtension storedRanPreviousSibling;
     private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling ) {
         return updateStep( parsingMap,  ranParentStep,  ranPreviousSibling, null, null);
     }
 
     private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling , String inputtedStepText, PickleStepArgument pickleStepArgument) {
-         this.parsingMap = parsingMap;
-         this.ranParentStep = ranParentStep;
-         this.ranPreviousSibling = ranPreviousSibling;
+         this.storedParsingMap = parsingMap;
+         this.storedRanParentStep = ranParentStep;
+         this.storedRanPreviousSibling = ranPreviousSibling;
 
         if (parentStep != null) {
             scenarioMaps = Stream.concat(parentStep.getScenarioMapInheritance().stream(), scenarioMaps.stream())
                     .toList();
         }
 
+        System.out.println("@@parsingMap=: " + parsingMap);
         parsingMap.overWriteEntries(scenarioMapKey, scenarioMaps.toArray(new NodeMap[0]));
 
         PickleStepArgument argument = rootStep.getArgument().orElse(null);
