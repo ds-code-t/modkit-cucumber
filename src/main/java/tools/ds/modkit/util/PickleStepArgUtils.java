@@ -103,6 +103,17 @@ public final class PickleStepArgUtils {
         return Kind.EMPTY;
     }
 
+    public static PickleStepArgument createDataTableArg(String text){
+        PickleTable rebuilt = rebuildTable(text == null ? "" : text);
+        return PickleStepArgument.of(rebuilt);
+    }
+
+    public static PickleStepArgument createDocStringArg(String text, String mediaType){
+        PickleDocString ds = new PickleDocString(mediaType, text == null ? "" : text);
+        return PickleStepArgument.of(ds);
+    }
+
+
     private static PickleStepArgument fromTextLike(String text, PickleStepArgument like, Kind kind) {
         switch (kind) {
             case DOC_STRING -> {

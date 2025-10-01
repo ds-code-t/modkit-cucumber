@@ -30,6 +30,7 @@ import java.util.stream.Stream;
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.metaFlag;
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.skipLogging;
 import static tools.ds.modkit.coredefinitions.MetaSteps.defaultMatchFlag;
+import static tools.ds.modkit.evaluations.AviatorUtil.eval;
 import static tools.ds.modkit.extensions.StepExtension.StepFlag.*;
 import static tools.ds.modkit.mappings.ParsingMap.scenarioMapKey;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
@@ -44,6 +45,12 @@ import static tools.ds.modkit.util.stepbuilder.StepUtilities.createScenarioPickl
 import static tools.ds.modkit.util.stepbuilder.StepUtilities.getDefinition;
 
 public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.event.Step {
+
+
+
+    public String evalWithStepMaps(String expression) {
+        return String.valueOf(eval(expression, parsingMap));
+    }
 
     @Override
     public String toString() {
@@ -259,7 +266,26 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 //    public final ParsingMap parsingMap;
 
 
-    public StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling) {
+
+    public StepExtension modifyStep(String newStepText, PickleStepArgument arg) {
+        return updateStep(parsingMap, ranParentStep, ranPreviousSibling, newStepText, arg);
+    }
+
+    public StepExtension modifyStep(String newStepText) {
+        return updateStep(parsingMap, ranParentStep, ranPreviousSibling, newStepText, null);
+    }
+
+    ParsingMap parsingMap;
+    StepExtension ranParentStep;
+    StepExtension ranPreviousSibling;
+    private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling ) {
+        return updateStep( parsingMap,  ranParentStep,  ranPreviousSibling, null, null);
+    }
+
+    private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling , String inputtedStepText, PickleStepArgument pickleStepArgument) {
+         this.parsingMap = parsingMap;
+         this.ranParentStep = ranParentStep;
+         this.ranPreviousSibling = ranPreviousSibling;
 
         if (parentStep != null) {
             scenarioMaps = Stream.concat(parentStep.getScenarioMapInheritance().stream(), scenarioMaps.stream())
@@ -270,8 +296,8 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
         PickleStepArgument argument = rootStep.getArgument().orElse(null);
         UnaryOperator<String> external = parsingMap::resolveWholeText;
-        PickleStepArgument newPickleStepArgument = isScenarioNameStep ? null : PickleStepArgUtils.transformPickleArgument(argument, external);
-        String newStepText = isScenarioNameStep ? stepTextOverRide : rootStep.getText();
+        PickleStepArgument newPickleStepArgument = pickleStepArgument != null ? pickleStepArgument : isScenarioNameStep ? null : PickleStepArgUtils.transformPickleArgument(argument, external);
+        String newStepText = inputtedStepText != null ? inputtedStepText : isScenarioNameStep ? stepTextOverRide : rootStep.getText();
         System.out.println("@@updateStep=1a : " + newStepText);
         System.out.println("@@updateStep=1b : " + parsingMap.resolveWholeText(newStepText));
 

@@ -1,8 +1,6 @@
 package tools.ds.modkit.mappings;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.collect.LinkedListMultimap;
 import tools.ds.modkit.mappings.queries.Tokenized;
 
@@ -10,9 +8,8 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static tools.ds.modkit.mappings.AviatorUtil.eval;
-import static tools.ds.modkit.mappings.AviatorUtil.evalToBoolean;
-import static tools.ds.modkit.mappings.NodeMap.MAPPER;
+import static tools.ds.modkit.evaluations.AviatorUtil.eval;
+import static tools.ds.modkit.evaluations.AviatorUtil.evalToBoolean;
 //import static tools.ds.modkit.mappings.KeyParser.Kind.SINGLE;
 //import static tools.ds.modkit.mappings.KeyParser.parseKey;
 

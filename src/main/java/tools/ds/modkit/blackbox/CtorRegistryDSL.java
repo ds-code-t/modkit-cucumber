@@ -7,6 +7,7 @@ import io.cucumber.core.backend.Glue;
 import io.cucumber.core.runner.Options;
 import io.cucumber.java.bs.A;
 import tools.ds.modkit.coredefinitions.GeneralSteps;
+import tools.ds.modkit.misc.DummySteps;
 import tools.ds.modkit.trace.InstanceRegistry;
 
 import java.net.URI;
@@ -90,6 +91,9 @@ public final class CtorRegistryDSL {
                                     List<URI> newGluePaths = toGluePath(GeneralSteps.class);
                                     newGluePaths.removeAll(currentGluePaths);
                                     currentGluePaths.addAll(newGluePaths);
+                                    List<URI> gluePathsToRemove = toGluePath(DummySteps.class);
+                                    currentGluePaths.removeAll(gluePathsToRemove);
+                                    System.out.println("@@currentGluePaths:: " + currentGluePaths);
                                     for (Backend backend : backends) {
                                         backend.loadGlue(glue, newGluePaths);
                                     }
