@@ -9,11 +9,35 @@ import com.google.common.collect.LinkedListMultimap;
 import tools.ds.modkit.mappings.queries.Tokenized;
 
 import java.util.*;
-import java.util.regex.Pattern;
 
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.metaFlag;
 
 public class NodeMap {
+
+
+    public DataSource getDataSource() {
+        return dataSource;
+    }
+
+    public void setDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+        this.root.set(DataSourceKey, MAPPER.valueToTree(dataSource));
+    }
+
+    public enum DataSource {CONFIGURATION_FILE, PASSED_TABLE, EXAMPLE_TABLE, STEP_TABLE, DEFAULT}
+
+    private DataSource dataSource = DataSource.DEFAULT;
+
+    public ParsingMap.MapType getMapType() {
+        return mapType;
+    }
+
+    public void setMapType(ParsingMap.MapType mapType) {
+        this.mapType = mapType;
+        this.root.set(MapTypeKey, MAPPER.valueToTree(mapType));
+    }
+
+    private ParsingMap.MapType mapType = ParsingMap.MapType.DEFAULT;
 
     public static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -21,23 +45,34 @@ public class NodeMap {
         MAPPER.registerModule(new GuavaModule());
     }
 
-    public final static String rootFlag = metaFlag + "_ROOT";
+    public final static String MapTypeKey = metaFlag + "_MapType";
+    public final static String DataSourceKey = metaFlag + "_DataSource";
 
     private final ObjectNode root;
 
+    public NodeMap(ParsingMap.MapType mapType, DataSource dataSource) {
+        this(mapType);
+        this.dataSource = dataSource;
+    }
+
+    public NodeMap(ParsingMap.MapType mapType) {
+        this.root = MAPPER.createObjectNode();
+        setMapType(mapType);
+    }
+
     public NodeMap() {
         this.root = MAPPER.createObjectNode();
-        this.root.set(rootFlag, MAPPER.valueToTree(true));
+        setMapType(mapType);
     }
 
     public NodeMap(Map<?, ?> map) {
         this.root = toObjectNode(map);
-        this.root.set(rootFlag, MAPPER.valueToTree(true));
+        setMapType(mapType);
     }
 
     public NodeMap(LinkedListMultimap<?, ?> multimap) {
         this.root = toObjectNode(multimap);
-        this.root.set(rootFlag, MAPPER.valueToTree(true));
+        setMapType(mapType);
     }
 
     public ObjectNode objectNode() {
@@ -47,17 +82,18 @@ public class NodeMap {
     public List<JsonNode> getAsList(Tokenized tokenized) {
         return tokenized.getList(root);
     }
+
     public List<JsonNode> getAsList(String key) {
         return (new Tokenized(key).getList(root));
     }
 
     public Object get(Tokenized tokenized) {
-        return  tokenized.get(root);
+        return tokenized.get(root);
     }
 
 
     public Object get(String key) {
-        return  (new Tokenized(key)).get(root);
+        return (new Tokenized(key)).get(root);
     }
 
 
@@ -95,7 +131,6 @@ public class NodeMap {
         if (n != null && n.isObject()) return (ObjectNode) n;
         throw new IllegalArgumentException("Multimap did not serialize to an ObjectNode");
     }
-
 
 
 }

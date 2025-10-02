@@ -7,6 +7,7 @@ import io.cucumber.plugin.event.PickleStepTestStep;
 import io.cucumber.plugin.event.TestCase;
 import tools.ds.modkit.extensions.StepExtension;
 import tools.ds.modkit.mappings.NodeMap;
+import tools.ds.modkit.mappings.ParsingMap;
 import tools.ds.modkit.state.ScenarioState;
 import tools.ds.modkit.trace.ObjDataRegistry;
 
@@ -47,13 +48,19 @@ public class StepExecution {
         pSteps.forEach(step -> steps.add(new StepExtension(step, this, pickle)));
         ScenarioState scenarioState = getScenarioState();
         NodeMap scenarioMap = scenarioState.getScenarioMap(scenarioState.getScenarioPickle());
-        if (scenarioMap != null)
-            steps.forEach(s -> s.addScenarioMaps(scenarioMap));
 
         Map<Integer, StepExtension> nestingMap = new HashMap<>();
 
-//        rootScenarioNameStep = new StepExtension(steps.getFirst().delegate, this, pickle, true, true, RUN_SCENARIO + pickle.getName());
-        rootScenarioNameStep = new StepExtension( pickle, this, steps.getFirst().delegate);
+        rootScenarioNameStep = new StepExtension(pickle, this, steps.getFirst().delegate);
+
+        NodeMap runMap = new NodeMap(ParsingMap.MapType.RUN_MAP);
+        rootScenarioNameStep.stepParsingMap = new ParsingMap(runMap);
+        if (scenarioMap != null) {
+            scenarioMap.setDataSource(NodeMap.DataSource.EXAMPLE_TABLE);
+            scenarioMap.setMapType(ParsingMap.MapType.STEP_MAP);
+
+        }
+
         rootScenarioNameStep.overRideUUID = skipLogging;
         nestingMap.put(-1, rootScenarioNameStep);
 
@@ -134,7 +141,6 @@ public class StepExecution {
 
 
     public void runSteps(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
-
 
 
         setFlag(testCase, ObjDataRegistry.ObjFlags.RUNNING);

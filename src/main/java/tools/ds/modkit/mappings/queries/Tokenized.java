@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.ds.modkit.mappings.ParsingMap;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -19,13 +20,15 @@ import java.util.stream.IntStream;
 
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.metaFlag;
 import static tools.ds.modkit.mappings.NodeMap.MAPPER;
-import static tools.ds.modkit.mappings.NodeMap.rootFlag;
+import static tools.ds.modkit.mappings.NodeMap.MapTypeKey;
 
 public final class Tokenized {
 
     public final String query;
     public final String getQuery;
     public final String suffix;
+    public final String prefix;
+    public List<String> mapNames;
     public final List<String> tokens;
     public final int tokenCount;
 
@@ -38,12 +41,26 @@ public final class Tokenized {
 
     public static String topArrayFlag = metaFlag + "_topArray";
 
+    public static final List<String> allowedMapNames =  Arrays.stream(ParsingMap.MapType.values()).map(Enum::name).toList();
+
     public Tokenized(String inputQuery) {
         Matcher m = SUFFIX_PATTERN.matcher(inputQuery);
         m.matches();
         String q = m.group(1).strip();
         suffix = m.group(2);
-
+        prefix = !Character.isLetter(q.charAt(0)) && q.charAt(0) != '_' ? q.replaceFirst("^([^A-Za-z_]+).*", "$1") : null;
+        if (prefix != null)
+            q = q.substring(prefix.length());
+        int idx = q.indexOf("::");
+        if(idx >= 0) {
+            q = q.substring(idx + 2);
+            String mapNameString  = q.substring(0, idx);
+            mapNames = Arrays.stream(mapNameString.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+            List<String> invalid = new ArrayList<>();
+            List<ParsingMap.MapType> result = new ArrayList<>();
+            for (String n : mapNames) if (allowedMapNames.contains(n)) result.add(ParsingMap.MapType.valueOf(n)); else invalid.add(n);
+            if (!invalid.isEmpty()) throw new IllegalArgumentException("Invalid: " + invalid + ", allowed: " + allowedMapNames);
+        }
 
         if (q.contains("#"))
             q = rewrite(q);
@@ -73,7 +90,7 @@ public final class Tokenized {
 
     public Object get(JsonNode root) {
         List<JsonNode> list = getList(root, getQuery);
-        if(list == null) return null;
+        if (list == null) return null;
         if (suffix == null) {
             if (list.isEmpty())
                 return null;
@@ -105,7 +122,7 @@ public final class Tokenized {
         System.out.println("@@A3");
 
         nodeList.add(returnedNode);
-        System.out.println("@@A4: " +  nodeList);
+        System.out.println("@@A4: " + nodeList);
         return nodeList;
     }
 
@@ -153,10 +170,10 @@ public final class Tokenized {
 
     public JsonNode setWithPath(JsonNode root, Object value) {
         System.out.println("@@setWithPath: " + tokens + " , val: " + value);
-        boolean isRootNode = root.has(rootFlag);
-        boolean containsTopArrayFlag =  tokenCount >1  && tokens.get(1).equals(topArrayFlag);
+        boolean isRootNode = root.has(MapTypeKey);
+        boolean containsTopArrayFlag = tokenCount > 1 && tokens.get(1).equals(topArrayFlag);
         boolean processTopArrayFlag = (isRootNode && tokenCount == 2 && containsTopArrayFlag);
-        if(containsTopArrayFlag)
+        if (containsTopArrayFlag)
             tokens.set(1, "[-1]");
         if (directPath) {
 
@@ -169,22 +186,21 @@ public final class Tokenized {
                 String nextToken = i + 1 < tokenCount ? tokens.get(i + 1) : null;
                 Object valueToSet = nextToken == null ? MAPPER.valueToTree(value) : processTopArrayFlag || nextToken.startsWith("[") ? ArrayNode.class : ObjectNode.class;
                 if (currentNode instanceof ArrayNode arrayNode) {
-                    if(i==1 && processTopArrayFlag)
+                    if (i == 1 && processTopArrayFlag)
                         arrayNode.add(NullNode.instance);
 
                     System.out.println("@@arrayNodeL::::: " + arrayNode);
                     Integer index = token.startsWith("[") ? token.equals("[]") ? arrayNode.size() : Integer.parseInt(token.substring(1, token.length() - 1)) : null;
-                    if(token.equals(topArrayFlag))
-                    System.out.println("@@index::::: " + index);
+                    if (token.equals(topArrayFlag))
+                        System.out.println("@@index::::: " + index);
 
                     System.out.println("@@=arrayNode1 " + arrayNode);
                     System.out.println("@@=index1 " + index);
 
 
-                    if(index<0)
-                    {
+                    if (index < 0) {
                         ensureIndex(arrayNode, Math.abs(index));
-                        index = arrayNode.size() +index;
+                        index = arrayNode.size() + index;
                     }
                     System.out.println("@@=arrayNode2 " + arrayNode);
                     System.out.println("@@=index2 " + index);
@@ -237,7 +253,6 @@ public final class Tokenized {
             arrayNode.add(valueToSet);
             return valueToSet;
         }
-
 
 
         JsonNode currentlySet = ensureIndex(arrayNode, index);

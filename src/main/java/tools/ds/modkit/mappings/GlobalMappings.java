@@ -1,9 +1,5 @@
 package tools.ds.modkit.mappings;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.google.common.collect.LinkedListMultimap;
-
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -21,6 +17,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class GlobalMappings extends NodeMap {
 
     public final static GlobalMappings GLOBALS = new GlobalMappings();
+
+    public GlobalMappings(){
+        setMapType(ParsingMap.MapType.GLOBAL_NODE);
+    }
 
     private final ReadWriteLock rw = new ReentrantReadWriteLock();
     private final Lock r = rw.readLock();

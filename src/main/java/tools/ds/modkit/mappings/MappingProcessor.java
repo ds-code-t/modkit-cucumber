@@ -10,61 +10,108 @@ import java.util.regex.Pattern;
 
 import static tools.ds.modkit.evaluations.AviatorUtil.eval;
 import static tools.ds.modkit.evaluations.AviatorUtil.evalToBoolean;
-//import static tools.ds.modkit.mappings.KeyParser.Kind.SINGLE;
-//import static tools.ds.modkit.mappings.KeyParser.parseKey;
 
 
 public abstract class MappingProcessor implements Map<String, Object> {
 
 
-    private final LinkedListMultimap<String, NodeMap> maps = LinkedListMultimap.create();
-    private final List<String> keyOrder;
+    private final LinkedListMultimap<ParsingMap.MapType, NodeMap> maps = LinkedListMultimap.create();
+    private final List<ParsingMap.MapType> keyOrder;
 
-    public MappingProcessor(String... keys) {
+    public MappingProcessor(ParsingMap parsingMap) {
+        this.keyOrder = parsingMap.keyOrder();
+        this.maps.putAll(parsingMap.getMaps());
+    }
+
+    public MappingProcessor(ParsingMap.MapType... keys) {
         // Defensive copy to make key order immutable
         this.keyOrder = Collections.unmodifiableList(new ArrayList<>(Arrays.asList(keys)));
     }
 
-    public void addEntries(String key, NodeMap... values) {
-        if (!keyOrder.contains(key)) {
-            throw new IllegalArgumentException("Key not part of initial key order: " + key);
-        }
-        for (NodeMap v : values) {
-            maps.put(key, v);
+    protected LinkedListMultimap<ParsingMap.MapType, NodeMap> getMaps() {
+        return maps;
+    }
+
+    public void removeMaps(NodeMap... nodes) {
+        removeMaps(Arrays.stream(nodes).toList());
+    }
+
+    public void removeMaps(List<NodeMap> nodes) {
+        for (NodeMap node : nodes) {
+            List<NodeMap> nodeList = maps.get(node.getMapType());
+            nodeList.remove(node);
         }
     }
 
-    public void addEntriesToStart(String key, NodeMap... values) {
-        if (!keyOrder.contains(key)) {
-            throw new IllegalArgumentException("Key not part of initial key order: " + key);
-        }
-        if (values.length == 0) return;                // no-op
-        maps.get(key).addAll(0, List.of(values));      // insert at start in given order
+    public void replaceMaps(NodeMap... nodes) {
+        replaceMaps(Arrays.stream(nodes).toList());
     }
 
-    public void overWriteEntries(String key, NodeMap... values) {
-        if (!keyOrder.contains(key)) {
-            throw new IllegalArgumentException("Key not part of initial key order: " + key);
+    public void replaceMaps(List<NodeMap> nodes) {
+        if (nodes != null) {
+            for (NodeMap node : nodes) {
+                clearMapType(node.getMapType());
+            }
+            for (NodeMap node : nodes) {
+                maps.put(node.getMapType(), node);
+            }
         }
+    }
+
+    public void addMaps(NodeMap... nodes) {
+        addMaps(Arrays.stream(nodes).toList());
+    }
+
+    public void addMaps(List<NodeMap> nodes) {
+        if (nodes != null) {
+            for (NodeMap node : nodes) {
+                maps.put(node.getMapType(), node);
+            }
+        }
+    }
+
+    public void addMapsToStart(NodeMap... nodes) {
+        addMapsToStart(Arrays.stream(nodes).toList());
+    }
+
+
+    public void addMapsToStart(List<NodeMap> nodes) {
+        List<List<NodeMap>> grouped = groupByMapType(nodes);
+        for(List<NodeMap> list : grouped)
+        {
+            if(list.isEmpty())
+                continue;
+            List<NodeMap> existingNodes = maps.get(list.getFirst().getMapType());
+            existingNodes.addAll(list);
+        }
+    }
+
+
+
+    public static List<List<NodeMap>> groupByMapType(List<NodeMap> nodes) {
+        List<List<NodeMap>> grouped = new ArrayList<>();
+        for (NodeMap c : nodes) {
+            if (grouped.isEmpty() ||
+                    !grouped.getLast().getFirst().getMapType().equals(c.getMapType())) {
+                grouped.add(new ArrayList<>());
+            }
+            grouped.getLast().add(c);
+        }
+        return grouped;
+    }
+
+
+    private void clearMapType(ParsingMap.MapType key) {
         maps.removeAll(key);
-        for (NodeMap v : values) {
-            maps.put(key, v);
-        }
     }
 
-    public void clearEntry(String key) {
-        if (!keyOrder.contains(key)) {
-            throw new IllegalArgumentException("Key not part of initial key order: " + key);
-        }
-        maps.removeAll(key);
-    }
 
     /**
      * Get a flat list of values, grouped and ordered by the original key order
      */
     public List<NodeMap> valuesInKeyOrder() {
         List<NodeMap> out = new ArrayList<>();
-        for (String key : keyOrder) {
+        for (ParsingMap.MapType key : keyOrder) {
             out.addAll(maps.get(key)); // maps.get() is live, but empty if unused
         }
         return out;
@@ -74,7 +121,7 @@ public abstract class MappingProcessor implements Map<String, Object> {
     /**
      * Expose immutable key order (for debugging/inspection)
      */
-    public List<String> keyOrder() {
+    public List<ParsingMap.MapType> keyOrder() {
         return keyOrder;
     }
 
@@ -106,6 +153,7 @@ public abstract class MappingProcessor implements Map<String, Object> {
 
     public String resolveAll(String input) {
         try {
+            int equalityCount = 0;
             String prev;
             do {
                 prev = input;
@@ -117,7 +165,16 @@ public abstract class MappingProcessor implements Map<String, Object> {
                 if (input.contains("{")) {
                     input = resolveCurly(input);
                 }
-            } while (!input.equals(prev));
+
+                if (input.equals(prev))
+                    equalityCount++;
+                else
+                    equalityCount = 0;
+                if (input.contains("<?") && equalityCount > 1) {
+                    input = input.replaceAll("<\\?[^<>{}]+>", "");
+                    if (input.equals(prev)) equalityCount = 0;
+                }
+            } while (equalityCount < 2);
             return input;
         } catch (Throwable t) {
             throw new RuntimeException("Could not resolve'" + input + "'", t);
@@ -128,31 +185,36 @@ public abstract class MappingProcessor implements Map<String, Object> {
     private String resolveByMap(String s) {
         System.out.println("@@===resolveByMap: " + s);
 
-
+        String key = null;
         try {
             Matcher m = ANGLE.matcher(s);
             StringBuffer sb = new StringBuffer();
             Object replacement = null;
+
+            outer:
             while (m.find()) {
-                System.out.println("@@$$m.group(1): " + m.group(1));
+                key = m.group(1);
 
-                Tokenized tokenized = new Tokenized(m.group(1));
-
+                Tokenized tokenized = new Tokenized(key);
 
                 for (NodeMap map : valuesInKeyOrder()) {
                     if (map == null) continue;
                     replacement = map.get(tokenized);
-                    System.out.println("@@replacement=== " + replacement);
-                    if (replacement != null)
-                        break;
+                    if (replacement != null) {
+                        break outer;  // exits BOTH loops in one go
+                    }
                 }
-                if (replacement != null) break;
             }
+
 
             if (replacement == null)
                 return s;
 
-            m.appendReplacement(sb, getStringValue(replacement));
+            String stringReplacement = getStringValue(replacement);
+            if (stringReplacement.isEmpty() && key != null)
+                stringReplacement = "<?" + key + ">";
+
+            m.appendReplacement(sb, stringReplacement);
 
             m.appendTail(sb);
             return sb.toString();
@@ -244,7 +306,7 @@ public abstract class MappingProcessor implements Map<String, Object> {
     }
 
     @Override
-    public Set<Map.Entry<String, Object>> entrySet() {
+    public Set<Entry<String, Object>> entrySet() {
         return Set.of();
     }
 

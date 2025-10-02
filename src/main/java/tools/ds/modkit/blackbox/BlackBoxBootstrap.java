@@ -40,7 +40,7 @@ public final class BlackBoxBootstrap {
     public static final String K_RUNNER = "io.cucumber.core.runner.Runner";
     public static final String K_JAVABACKEND = "io.cucumber.java.JavaBackend";
 
-    public static final String metaFlag = "\u206A-TEXT";
+    public static final String metaFlag = "\u206AMETA";
 
     private static final Pattern LINE_SWAP_PATTERN = Pattern.compile(
             "^((?:(?:\\s*:)|(?:\\s*@\\[[^\\[\\]]*\\]))+)(\\s*[A-Z*].*$)",

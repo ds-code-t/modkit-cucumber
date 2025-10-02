@@ -1,6 +1,5 @@
 package tools.ds.modkit.state;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.LinkedListMultimap;
 import io.cucumber.core.backend.TestCaseState;
 import io.cucumber.core.eventbus.EventBus;
@@ -25,6 +24,9 @@ import static tools.ds.modkit.util.Reflect.*;
 import static tools.ds.modkit.util.TableUtils.exampleHeaderValueMap;
 
 public final class ScenarioState {
+
+
+
 
     private Map<String, NodeMap> scenarioMaps = new HashMap<>();
 
@@ -260,12 +262,6 @@ public final class ScenarioState {
         return CucumberTagUtils.extractTags(getRuntimeOptions());
     }
 
-//    public Object getTagExpressions() {
-//        List<Expression> tagExpressions = (List<Expression>) getProperty(getRuntimeOptions(), "tagExpressions");
-//        if(tagExpressions == null)
-//            return ((Optional<?>) invokeAnyMethod(getRuntimeOptions(),"tagFilter")).orElse(null);
-//        return tagExpressions;
-//    }
 
     public CucumberQueryUtil.GherkinView getCucumberQuery() {
         return CucumberQueryUtil.describe(getScenarioPickle());

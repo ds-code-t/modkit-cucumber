@@ -8,17 +8,20 @@ import io.cucumber.gherkin.GherkinDialects;
 import io.cucumber.messages.types.PickleStep;
 import io.cucumber.messages.types.PickleStepArgument;
 import io.cucumber.messages.types.PickleStepType;
+import io.cucumber.plugin.event.Location;
 import io.cucumber.plugin.event.PickleStepTestStep;
 import tools.ds.modkit.extensions.StepExtension;
 import tools.ds.modkit.util.Reflect;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 import static tools.ds.modkit.coredefinitions.MetaSteps.defaultMatchFlag;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
-import static tools.ds.modkit.util.Reflect.getProperty;
 import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 
 public class StepUtilities {
@@ -26,6 +29,10 @@ public class StepUtilities {
 
     public static PickleStep createPickleStep(PickleStepArgument pickleStepArgument, java.util.List<String> astNodeIds, String id, PickleStepType pickleStepType, String stepText) {
         return new PickleStep(pickleStepArgument, astNodeIds, id, pickleStepType, stepText);
+    }
+
+    public static PickleStep createPickleStep(String stepText) {
+        return new PickleStep(null, new ArrayList<>(), "111111111", PickleStepType.CONTEXT, stepText);
     }
 
     public static io.cucumber.core.gherkin.Step createGherikinMessageStep(PickleStep pickleStep, String previousGivenWhenThenKeyword, io.cucumber.plugin.event.Location location, String keyword) {
@@ -65,13 +72,10 @@ public class StepUtilities {
             PickleStepTestStep step = createPickleStepTestStep(null, new ArrayList<>(), UUID.randomUUID().toString(), PickleStepType.CONTEXT, newStepText, gherikinMessageStep.getPreviousGivenWhenThenKeyword(), pickle.getLocation(), gherikinMessageStep.getKeyword(), UUID.randomUUID(), pickle.getUri());
             return step;
 
-        }
-        catch (Throwable t)
-        {
+        } catch (Throwable t) {
             t.printStackTrace();
             throw t;
         }
-//        return createPickleStepTestStep( null, new ArrayList<>(),   UUID.randomUUID().toString(),  PickleStepType.CONTEXT,  pickle.getName(),  "*",  pickle.getLocation(),  "*",   UUID.randomUUID(),  pickle.getUri());
     }
 
 
@@ -83,4 +87,35 @@ public class StepUtilities {
         return invokeAnyMethod(runner, "matchStepToStepDefinition", pickle, step);
     }
 
+
+    public static PickleStepTestStep CreateOrphanStep(String stepText) throws URISyntaxException {
+            String keyword = GherkinDialects.getDialect(getScenarioState().getPickleLanguage()).orElse(GherkinDialects.getDialect("en").get()).getThenKeywords().getFirst();
+            return createPickleStepTestStep(
+                    null,
+                    new ArrayList<>(),
+                    UUID.randomUUID().toString(),
+                    PickleStepType.CONTEXT,
+                    stepText,
+                    keyword,
+                    new Location(1, 1),
+                    keyword, UUID.randomUUID(),
+                    URI.create("")
+            );
+    }
+
+    public static PickleStepTestStep createMessageStep(String message) throws URISyntaxException {
+        String keyword = GherkinDialects.getDialect(getScenarioState().getPickleLanguage()).orElse(GherkinDialects.getDialect("en").get()).getThenKeywords().getFirst();
+        return createPickleStepTestStep(
+                null,
+                new ArrayList<>(),
+                UUID.randomUUID().toString(),
+                PickleStepType.CONTEXT,
+                message,
+                keyword,
+                new Location(1, 1),
+                keyword, UUID.randomUUID(),
+                URI.create("MESSAGE:\"" + message +"\"")
+        );
+    }
+//
 }

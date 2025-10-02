@@ -4,13 +4,17 @@ import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Small helper for reflective calls against public or non-public classes. */
+/**
+ * Small helper for reflective calls against public or non-public classes.
+ */
 public final class Reflect {
 
 
     /* ===================== Constructors ===================== */
 
-    /** Create a new instance via the best-matching declared constructor. Returns null on failure. */
+    /**
+     * Create a new instance via the best-matching declared constructor. Returns null on failure.
+     */
     public static Object newInstance(Class<?> clazz, Object... args) {
         if (clazz == null) return null;
         final Object[] a = (args == null) ? new Object[0] : args;
@@ -42,23 +46,28 @@ public final class Reflect {
         int bestScore = Integer.MIN_VALUE;
         for (Constructor<?> c : byCount) {
             int score = applicabilityScore(c, a);
-            if (score > bestScore) { bestScore = score; best = c; }
+            if (score > bestScore) {
+                bestScore = score;
+                best = c;
+            }
         }
         if (best == null) best = byCount.get(0);
         return tryConstruct(best, a);
     }
 
-    /** Load a class (TCCL first, then this loader) and construct it. Returns null on failure. */
-    public static Object newInstance(String fqcn, Object... args) {
-        if (fqcn == null || fqcn.isEmpty()) return null;
+
+    public static Object newInstance(String fqcn, Object... args)  {
+        if (fqcn == null || fqcn.isEmpty()) {
+            throw new IllegalArgumentException("fqcn must not be null or empty");
+        }
         ClassLoader tccl = Thread.currentThread().getContextClassLoader();
         try {
             return newInstance(Class.forName(fqcn, false, tccl), args);
-        } catch (ClassNotFoundException ignore) {
+        } catch (ClassNotFoundException e) {
             try {
                 return newInstance(Class.forName(fqcn, false, Reflect.class.getClassLoader()), args);
-            } catch (ClassNotFoundException e2) {
-                return null;
+            } catch (Throwable t) {
+                throw new RuntimeException("Reflection constructor call failed for " + fqcn + " " + args, t);
             }
         }
     }
@@ -105,7 +114,9 @@ public final class Reflect {
         return score;
     }
 
-    /** Package varargs into an array if the ctor is varargs. */
+    /**
+     * Package varargs into an array if the ctor is varargs.
+     */
     private static Object[] prepareArgsForVarargs(Constructor<?> c, Object[] args) {
         if (!c.isVarArgs()) return args;
 
@@ -133,18 +144,17 @@ public final class Reflect {
     }
 
 
-
     /**
      * Invoke a method (public or private), supporting both instance and static targets.
-     *
+     * <p>
      * Usage:
-     *  - Instance: invokeAnyMethod(someObject, "doThing", args...)
-     *  - Static:   invokeAnyMethod(SomeClass.class, "staticThing", args...)
-     *
+     * - Instance: invokeAnyMethod(someObject, "doThing", args...)
+     * - Static:   invokeAnyMethod(SomeClass.class, "staticThing", args...)
+     * <p>
      * Matching order:
-     *  1) by name (instance methods preferred when target is an instance; static-only if target is Class),
-     *  2) then by argument count (varargs accepted),
-     *  3) then by argument types (best assignable match).
+     * 1) by name (instance methods preferred when target is an instance; static-only if target is Class),
+     * 2) then by argument count (varargs accepted),
+     * 3) then by argument types (best assignable match).
      * Returns null on failure.
      */
     public static Object invokeAnyMethod(Object target, String methodName, Object... args) {
@@ -157,7 +167,7 @@ public final class Reflect {
 
         // Collect candidates by name, preferring instance methods first for instance calls.
         List<Method> instanceNamed = new ArrayList<>();
-        List<Method> staticNamed   = new ArrayList<>();
+        List<Method> staticNamed = new ArrayList<>();
 
         for (Class<?> k = clazz; k != null; k = k.getSuperclass()) {
             for (Method m : k.getDeclaredMethods()) {
@@ -239,7 +249,9 @@ public final class Reflect {
         }
     }
 
-    /** Does this method accept this many arguments (including via varargs)? */
+    /**
+     * Does this method accept this many arguments (including via varargs)?
+     */
     private static boolean acceptsArgCount(Method m, int argCount) {
         int params = m.getParameterCount();
         if (m.isVarArgs()) {
@@ -250,7 +262,9 @@ public final class Reflect {
         }
     }
 
-    /** Higher score = better match. Prefers non-varargs, exact type matches, then assignable matches. */
+    /**
+     * Higher score = better match. Prefers non-varargs, exact type matches, then assignable matches.
+     */
     private static int applicabilityScore(Method m, Object[] args) {
         Class<?>[] pt = m.getParameterTypes();
         boolean var = m.isVarArgs();
@@ -281,7 +295,9 @@ public final class Reflect {
         return score;
     }
 
-    /** Exact match +2, assignable +1, null to primitive = -inf, else 0. */
+    /**
+     * Exact match +2, assignable +1, null to primitive = -inf, else 0.
+     */
     private static int matchScore(Class<?> paramType, Object arg) {
         if (arg == null) return paramType.isPrimitive() ? Integer.MIN_VALUE : 1;
         Class<?> a = arg.getClass();
@@ -297,17 +313,19 @@ public final class Reflect {
 
     private static Class<?> wrapperType(Class<?> primitive) {
         if (primitive == boolean.class) return Boolean.class;
-        if (primitive == byte.class)    return Byte.class;
-        if (primitive == short.class)   return Short.class;
-        if (primitive == char.class)    return Character.class;
-        if (primitive == int.class)     return Integer.class;
-        if (primitive == long.class)    return Long.class;
-        if (primitive == float.class)   return Float.class;
-        if (primitive == double.class)  return Double.class;
+        if (primitive == byte.class) return Byte.class;
+        if (primitive == short.class) return Short.class;
+        if (primitive == char.class) return Character.class;
+        if (primitive == int.class) return Integer.class;
+        if (primitive == long.class) return Long.class;
+        if (primitive == float.class) return Float.class;
+        if (primitive == double.class) return Double.class;
         return primitive; // not expected
     }
 
-    /** Prepare arguments for reflective call, packaging varargs if necessary. */
+    /**
+     * Prepare arguments for reflective call, packaging varargs if necessary.
+     */
     private static Object[] prepareArgsForVarargs(Method m, Object[] args) {
         if (!m.isVarArgs()) return args;
 
@@ -337,7 +355,9 @@ public final class Reflect {
         return packed;
     }
 
-    /** Single-hop: read a direct field/getter on the given target. */
+    /**
+     * Single-hop: read a direct field/getter on the given target.
+     */
     public static Object getDirectProperty(Object target, String name) {
         if (target == null || name == null || name.isEmpty()) return null;
 
@@ -394,16 +414,18 @@ public final class Reflect {
     // --- helpers (unchanged) ---
     private static Field findField(Class<?> type, String name) {
         for (Class<?> c = type; c != null; c = c.getSuperclass()) {
-            try { return c.getDeclaredField(name); }
-            catch (NoSuchFieldException ignore) { /* keep walking */ }
+            try {
+                return c.getDeclaredField(name);
+            } catch (NoSuchFieldException ignore) { /* keep walking */ }
         }
         return null;
     }
 
     public static Method findZeroArgMethod(Class<?> type, String name) {
         for (Class<?> c = type; c != null; c = c.getSuperclass()) {
-            try { return c.getDeclaredMethod(name); }
-            catch (NoSuchMethodException ignore) { /* keep walking */ }
+            try {
+                return c.getDeclaredMethod(name);
+            } catch (NoSuchMethodException ignore) { /* keep walking */ }
         }
         return null;
     }
@@ -423,10 +445,11 @@ public final class Reflect {
     }
 
 
-
     // --- setters ---------------------------------------------------------------
 
-    /** Single-hop: set a direct field or 1-arg setter on the given target. */
+    /**
+     * Single-hop: set a direct field or 1-arg setter on the given target.
+     */
     public static boolean setDirectProperty(Object target, String name, Object value) {
         if (target == null || name == null || name.isEmpty()) return false;
 
@@ -464,7 +487,9 @@ public final class Reflect {
         return false;
     }
 
-    /** Multi-hop: supports dot paths like "a.b.c" (sets 'c' on the resolved 'b'). */
+    /**
+     * Multi-hop: supports dot paths like "a.b.c" (sets 'c' on the resolved 'b').
+     */
     public static boolean setProperty(Object target, String path, Object value) {
         if (target == null || path == null || path.isEmpty()) return false;
 
@@ -500,5 +525,6 @@ public final class Reflect {
     }
 
 
-    private Reflect() {}
+    private Reflect() {
+    }
 }
