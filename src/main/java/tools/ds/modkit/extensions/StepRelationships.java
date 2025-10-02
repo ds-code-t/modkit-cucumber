@@ -3,6 +3,7 @@ package tools.ds.modkit.extensions;
 import tools.ds.modkit.mappings.ParsingMap;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public abstract class StepRelationships {
@@ -14,6 +15,23 @@ public abstract class StepRelationships {
     protected boolean isFlagStep = false;
     protected final List<String> stepFlags = new ArrayList<>();
 
+    private int nestingLevel;
+
+    public List<String> stepTags = new ArrayList<>();
+    public List<String> bookmarks = new ArrayList<>();
+
+    public enum ConditionalStates { SKIP_CHILDREN, SKIP , FALSE, TRUE}
+
+    private final List<ConditionalStates> conditionalStates = new ArrayList<>();
+
+    public List<ConditionalStates> getConditionalStates() {
+        return conditionalStates;
+    }
+
+    public void addConditionalStates(ConditionalStates... states) {
+        this.conditionalStates.addAll(Arrays.stream(states).toList());
+    }
+
     public int getNestingLevel() {
         return nestingLevel;
     }
@@ -22,8 +40,6 @@ public abstract class StepRelationships {
         this.nestingLevel = nestingLevel;
     }
 
-    private int nestingLevel;
-    public List<String> stepTags = new ArrayList<>();
 
     public ParsingMap getStepParsingMap() {
         return stepParsingMap;
@@ -100,16 +116,19 @@ public abstract class StepRelationships {
     }
 
     public void insertNextSibling(StepExtension insertNextSibling) {
-        if (nextSibling != null)
-            insertNextSibling.setNextSibling(nextSibling);
+        StepExtension originalNextSibling = getNextSibling();
+        if (originalNextSibling != null)
+            insertNextSibling.setNextSibling(originalNextSibling);
+        System.out.println("@@nextSibling11: " + originalNextSibling);
         setNextSibling(insertNextSibling);
         if (parentStep != null) {
             insertNextSibling.setParentStep(parentStep);
             insertNextSibling.setStepParsingMap(new ParsingMap(parentStep.getStepParsingMap()));
-            if (nextSibling == null)
+            System.out.println("@@nextSibling22: " + originalNextSibling);
+            if (originalNextSibling == null)
                 parentStep.getChildSteps().add(insertNextSibling);
             else
-                parentStep.getChildSteps().add(parentStep.getChildSteps().indexOf(nextSibling), insertNextSibling);
+                parentStep.getChildSteps().add(parentStep.getChildSteps().indexOf(originalNextSibling), insertNextSibling);
         }
     }
 
@@ -129,5 +148,6 @@ public abstract class StepRelationships {
         copyTo.templateStep = copyFrom;
         copyTo.stepFlags.addAll(copyFrom.stepFlags);
     }
+
 
 }

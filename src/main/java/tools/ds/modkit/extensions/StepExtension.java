@@ -52,7 +52,9 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
         return getStepText();
     }
 
-
+    public static StepExtension getCurrentStep() {
+        return getScenarioState().getCurrentStep();
+    }
 //    private  boolean skipLogging;
 
     public final PickleStepTestStep delegate;
@@ -76,7 +78,8 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
 
     private final boolean metaStep;
 
-    private static final Pattern pattern = Pattern.compile("@\\[([^\\[\\]]+)\\]");
+//    private static final Pattern pattern = Pattern.compile("@\\[([^\\[\\]]+)\\]");
+    private static final Pattern pattern = Pattern.compile("@:([A-Z]+:[A-Z-a-z0-9]+)");
 
 //    private static final Class<?> metaClass = tools.ds.modkit.coredefinitions.MetaSteps.class;
 //    private static final Class<?> ModularScenarios = tools.ds.modkit.coredefinitions.MetaSteps.class;
@@ -113,7 +116,7 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
 
         this.isCoreStep = codeLocation.startsWith(MetaSteps.class.getPackageName() + ".");
         this.method = (Method) getProperty(step, "definitionMatch.stepDefinition.stepDefinition.method");
-        this.methodName = this.method.getName();
+        this.methodName = this.method == null ? "" : this.method.getName();
         this.stepExecution = stepExecution;
         this.delegate = step;
 
@@ -123,7 +126,6 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
             stepFlags.add(delegate.getStep().getText());
         }
 
-//        this.pickleKey = getPickleKey(pickle);
 
         this.gherikinMessageStep = (io.cucumber.core.gherkin.Step) getProperty(delegate, "step");
         this.rootStep = (PickleStep) getProperty(gherikinMessageStep, "pickleStep");
@@ -131,39 +133,16 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
         rootText = strings[0].trim();
         metaData = strings.length == 1 ? "" : strings[1].trim();
         Matcher matcher = pattern.matcher(metaData);
-
         isDataTableStep = isCoreStep && method.getName().equals("getDataTable");
-
         metaStep = isDataTableStep;
 
-
         while (matcher.find()) {
-            stepTags.add(matcher.group().substring(1).replaceAll("\\[|\\]", ""));
+            stepTags.add(matcher.group().substring(1).replaceAll("@:", ""));
         }
 
+        stepTags.stream().filter(t -> t.startsWith("REF:")).forEach(t -> bookmarks.add(t.replaceFirst("REF:", "")));
         setNestingLevel((int) matcher.replaceAll("").chars().filter(ch -> ch == ':').count());
     }
-
-
-//    public void addScenarioMaps(NodeMap... nodes) {
-//        for (NodeMap node : nodes) {
-//            if (node != null) {
-//                this.scenarioMaps.add(node);
-//            }
-//        }
-//    }
-
-
-//    public void addFirstScenarioMaps(NodeMap... nodes) {
-//        for (NodeMap node : nodes) {
-//            if (node != null) {
-//                this.scenarioMaps.addFirst(node);
-//            }
-//        }
-//    }
-
-
-//    private List<NodeMap> scenarioMaps = new ArrayList<>();
 
 
     public final StepExecution stepExecution;
@@ -285,7 +264,7 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
     }
 
     public StepExtension runFirstChild() {
-        if (getChildSteps().isEmpty())
+        if (getChildSteps().isEmpty() || getConditionalStates().contains(ConditionalStates.SKIP_CHILDREN))
             return null;
         StepExtension firstChildToRun = getChildSteps().getFirst().updateStep();
         firstChildToRun.setParentStep(this);

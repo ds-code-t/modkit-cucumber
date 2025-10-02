@@ -1,8 +1,26 @@
 Feature: Tiny calculator
 
+  Scenario: conditionals2
+    * IF: 1 + 1 > 5
+  : Then a is 1 and b is 6
+    * ELSE-IF: 5 + 1 > 5
+  : Then a is 1 and b is 6
+    * ELSE-IF: 1 + 1 > 5
+  : Then a is 1 and b is 6
+    * ELSE:
+  : Then a is 2 and b is 3
+
   Scenario: conditionals
-    * IF: true THEN: "a is 1 and b is 6"
-#    Given a is 1 and b is 6
+    * IF: true THEN: "a is 1 and b is 6" ELSE: d
+    * IF: true THEN: "a is 1 and b is 6" ELSE: d
+    * IF: true THEN: "a is 1 and b is 6" ELSE-IF: s THEN: s ELSE-IF: s THEN:
+    * ELSE:  THEN: "a is 1 and b is 6"
+    * IF: ss
+    * ELSE: sd
+    * ELSE-IF: sd
+  : Given a is 4 and b is 6
+#  :: Given a is 22 and b is 6
+    Given a is 9 and b is 6
 #    * IF: HAVE-VALUE: [6,0,0,0] THEN: I am running a testlzz 1111zzaa\"aa and s ELSE: s
 
   Scenario: ssss 323
@@ -13,7 +31,7 @@ Feature: Tiny calculator
   : Given a is 3 and b is 6
   : Given a is 4 and b is 6
   :: Given a is 5 and b is 6
-  Given a is 66 and b is 6
+    Given a is 66 and b is 6
 
 
   Scenario: calling scenario 1s

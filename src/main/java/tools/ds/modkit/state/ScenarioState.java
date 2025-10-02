@@ -42,6 +42,7 @@ public final class ScenarioState {
         return currentStep;
     }
 
+
     public void setCurrentStep(StepExtension currentStep) {
         this.currentStep = currentStep;
     }

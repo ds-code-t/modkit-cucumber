@@ -4,11 +4,13 @@ import io.cucumber.plugin.event.PickleStepTestStep;
 import tools.ds.modkit.coredefinitions.GeneralSteps;
 import tools.ds.modkit.coredefinitions.MetaSteps;
 import tools.ds.modkit.extensions.StepExtension;
+import tools.ds.modkit.misc.DummySteps;
 import tools.ds.modkit.util.CallScope;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -91,6 +93,20 @@ public final class BlackBoxBootstrap {
 //                        })
 //                        .build()
 //        );
+
+        Registry.register(
+                on("io.cucumber.java.MethodScanner", "scan", 3)
+                        .around(
+                                args -> {
+                                    System.out.println("@@scanner "+ Arrays.stream(args).toList());
+                                    Class<?> aClass = (Class<?>) args[1];
+                                    return aClass.getSimpleName().toLowerCase().contains("dummysteps");
+
+                                },
+                                args -> null // void method → return null when bypassing
+                        )
+                        .build()
+        );
 
 
         // Skip TestCase.emitTestCaseStarted(..) when executionId matches a configured UUID
