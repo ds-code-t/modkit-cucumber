@@ -15,6 +15,7 @@ import java.util.Map;
 
 //import static tools.ds.modkit.coredefinitions.MetaSteps.RUN_SCENARIO;
 import static tools.ds.modkit.executions.StepExecution.setNesting;
+import static tools.ds.modkit.extensions.StepRelationships.pairSiblings;
 import static tools.ds.modkit.modularexecutions.CucumberScanUtil.listPickles;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.util.stepbuilder.StepUtilities.createPickleStepTestStep;
@@ -64,12 +65,11 @@ public class ModularScenarios {
                     if (scenarioMap != null) {
                         scenarioMap.setMapType(ParsingMap.MapType.STEP_MAP);
                         scenarioMap.setDataSource(NodeMap.DataSource.PASSED_TABLE);
-                        currentScenarioNameStep.stepParsingMap.replaceMaps(scenarioMap);
+                        currentScenarioNameStep.getStepParsingMap().replaceMaps(scenarioMap);
                     }
 
                     if (lastScenarioNameStep != null) {
-                        lastScenarioNameStep.setNextSibling(currentScenarioNameStep);
-//                    currentScenarioNameStep.setPreviousSibling(lastScenarioNameStep);
+                        pairSiblings(lastScenarioNameStep, currentScenarioNameStep);
                     }
 
                     lastScenarioNameStep = currentScenarioNameStep;

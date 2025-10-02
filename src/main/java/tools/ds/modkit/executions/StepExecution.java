@@ -18,6 +18,7 @@ import java.util.Map;
 
 //import static tools.ds.modkit.coredefinitions.MetaSteps.RUN_SCENARIO;
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.skipLogging;
+import static tools.ds.modkit.extensions.StepRelationships.pairSiblings;
 import static tools.ds.modkit.state.GlobalState.*;
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.trace.ObjDataRegistry.setFlag;
@@ -54,7 +55,7 @@ public class StepExecution {
         rootScenarioNameStep = new StepExtension(pickle, this, steps.getFirst().delegate);
 
         NodeMap runMap = new NodeMap(ParsingMap.MapType.RUN_MAP);
-        rootScenarioNameStep.stepParsingMap = new ParsingMap(runMap);
+        rootScenarioNameStep.setStepParsingMap(new ParsingMap(runMap));
         if (scenarioMap != null) {
             scenarioMap.setDataSource(NodeMap.DataSource.EXAMPLE_TABLE);
             scenarioMap.setMapType(ParsingMap.MapType.STEP_MAP);
@@ -87,11 +88,11 @@ public class StepExecution {
             StepExtension previousSibling = currentNesting > lastNestingLevel ? null : nestingMap.get(currentNesting);
 
             if (previousSibling != null) {
-                previousSibling.setNextSibling(currentStep);
-//                currentStep.previousSibling = previousSibling;
+                pairSiblings(previousSibling, currentStep);
             }
             if (parentStep != null) {
-                currentStep.setParentStep(parentStep);
+                parentStep.addChildStep(currentStep);
+//                currentStep.setParentStep(parentStep);
             }
 
             nestingMap.put(currentNesting, currentStep);

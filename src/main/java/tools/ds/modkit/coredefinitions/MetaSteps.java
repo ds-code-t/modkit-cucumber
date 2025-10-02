@@ -7,13 +7,7 @@ import io.cucumber.java.en.Given;
 public class MetaSteps {
 
 
-    @Given("^(.*\\s+)?DATA TABLE$")
-    public static void getDataTable(String tableName, DataTable dataTable) {
-        System.out.println("@@getDataTable");
-        System.out.println("@@tableName: " + tableName);
-        System.out.println("@@dataTable: " + dataTable);
-        // place Holder
-    }
+
 
     public static final String RUN_SCENARIO = "RUN SCENARIO:";
 

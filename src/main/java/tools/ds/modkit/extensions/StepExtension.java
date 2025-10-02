@@ -22,13 +22,12 @@ import java.util.*;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.metaFlag;
 import static tools.ds.modkit.blackbox.BlackBoxBootstrap.skipLogging;
+import static tools.ds.modkit.coredefinitions.FlagSteps.*;
 import static tools.ds.modkit.coredefinitions.MetaSteps.defaultMatchFlag;
 import static tools.ds.modkit.evaluations.AviatorUtil.eval;
-import static tools.ds.modkit.extensions.StepExtension.StepFlag.*;
 
 import static tools.ds.modkit.state.ScenarioState.getScenarioState;
 import static tools.ds.modkit.util.ExecutionModes.RUN;
@@ -39,13 +38,13 @@ import static tools.ds.modkit.util.Reflect.invokeAnyMethod;
 import static tools.ds.modkit.util.stepbuilder.StepUtilities.createScenarioPickleStepTestStep;
 import static tools.ds.modkit.util.stepbuilder.StepUtilities.getDefinition;
 
-public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.event.Step {
+public class StepExtension extends StepRelationships implements PickleStepTestStep, io.cucumber.plugin.event.Step {
 
     public Throwable storedThrowable;
 
 
     public String evalWithStepMaps(String expression) {
-        return String.valueOf(eval(expression, stepParsingMap));
+        return String.valueOf(eval(expression, getStepParsingMap()));
     }
 
     @Override
@@ -73,6 +72,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     private DataTable stepDataTable;
 
 
+
     private final boolean isCoreStep;
     private final boolean isDataTableStep;
 
@@ -85,9 +85,11 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
 
     private final Method method;
+    private final String methodName;
 
     //    private final String stepTextOverRide;
     private final boolean isScenarioNameStep;
+
 
 
     public StepExtension(io.cucumber.core.gherkin.Pickle pickle, StepExecution stepExecution,
@@ -114,12 +116,19 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         this.parentPickle = pickle;
 
         this.isCoreStep = codeLocation.startsWith(MetaSteps.class.getPackageName() + ".");
-
         this.method = (Method) getProperty(step, "definitionMatch.stepDefinition.stepDefinition.method");
-
-//        this.pickleKey = getPickleKey(pickle);
+        this.methodName = this.method.getName();
         this.stepExecution = stepExecution;
         this.delegate = step;
+
+
+        if (isCoreStep && methodName.startsWith("flagStep_")) {
+            this.isFlagStep = true;
+            stepFlags.add(delegate.getStep().getText());
+        }
+
+//        this.pickleKey = getPickleKey(pickle);
+
         this.gherikinMessageStep = (io.cucumber.core.gherkin.Step) getProperty(delegate, "step");
         this.rootStep = (PickleStep) getProperty(gherikinMessageStep, "pickleStep");
         String[] strings = ((String) getProperty(rootStep, "text")).split(metaFlag);
@@ -136,12 +145,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
             stepTags.add(matcher.group().substring(1).replaceAll("\\[|\\]", ""));
         }
 
-        for (String s : stepTags)
-            try {
-                stepFlags.add(StepFlag.valueOf(s.trim()));
-            } catch (Exception e) {
-                throw new IllegalArgumentException("Illegal flag at " + getLocation() + " : " + s + " | Allowed: " + Arrays.stream(StepFlag.values()).map(Enum::name).collect(Collectors.joining(", ")));
-            }
         nestingLevel = (int) matcher.replaceAll("").chars().filter(ch -> ch == ':').count();
     }
 
@@ -184,61 +187,12 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     private int nestingLevel;
     public List<String> stepTags = new ArrayList<>();
 
-    public List<StepExtension> getChildSteps() {
-        return childSteps;
-    }
-
-    public void addChildStep(StepExtension child) {
-        child.parentStep = this;
-        childSteps.add(child);
-        child.stepParsingMap = new ParsingMap(stepParsingMap);
-    }
-
-    private final List<StepExtension> childSteps = new ArrayList<>();
 
 
-    public StepExtension getParentStep() {
-        return parentStep;
-    }
-
-    public void setParentStep(StepExtension parentStep) {
-        parentStep.childSteps.add(this);
-        this.parentStep = parentStep;
-    }
-
-    public StepExtension getPreviousSibling() {
-        return previousSibling;
-    }
-
-    public void setPreviousSibling(StepExtension previousSibling) {
-        previousSibling.nextSibling = this;
-        this.previousSibling = previousSibling;
-    }
 
 
-    public StepExtension getNextSibling() {
-        return nextSibling;
-    }
-
-    public void setNextSibling(StepExtension nextSibling) {
-        nextSibling.previousSibling = this;
-        this.nextSibling = nextSibling;
-    }
-
-    public void insertNextSibling(StepExtension insertNextSibling) {
-        if (nextSibling != null)
-            insertNextSibling.setNextSibling(nextSibling);
-        setNextSibling(insertNextSibling);
-        if (parentStep != null)
-            parentStep.addChildStep(insertNextSibling);
-    }
-
-
-    private StepExtension parentStep;
-    private StepExtension previousSibling;
-    private StepExtension nextSibling;
     public final StepExecution stepExecution;
-    public Result result;
+        public Result result;
 
 
     public List<Object> getExecutionArguments() {
@@ -251,45 +205,36 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     }
 
     private List<Object> executionArguments;
-    public ParsingMap stepParsingMap;
+
 
 
     public StepExtension createMessageStep(String newStepText) {
-        Map<String,String> map = new HashMap<>();
-        map.put("newStepText",  "MESSAGE:\"" + newStepText + "\"");
-        map.put("removeArgs",  "true");
-        map.put("RANDOMID",  "RANDOMID");
+        Map<String, String> map = new HashMap<>();
+        map.put("newStepText", "MESSAGE:\"" + newStepText + "\"");
+        map.put("removeArgs", "true");
+        map.put("RANDOMID", "RANDOMID");
 
         return updateStep(null, null, null, map);
     }
 
     public StepExtension modifyStep(String newStepText) {
-        Map<String,String> map = new HashMap<>();
+        Map<String, String> map = new HashMap<>();
         map.put("newStepText", newStepText);
         return updateStep(null, null, null, map);
     }
 
 
-
-
     private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling) {
-        return updateStep( parsingMap,  ranParentStep,  ranPreviousSibling, new HashMap<>());
+        return updateStep(parsingMap, ranParentStep, ranPreviousSibling, new HashMap<>());
     }
-    private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling, Map<String,String> overrides) {
-        ParsingMap newParsingMap = parsingMap == null ? this.stepParsingMap : parsingMap;
-//        this.stepParsingMap = parsingMap;
 
-//        if (parentStep != null) {
-//            scenarioMaps = Stream.concat(parentStep.getScenarioMapInheritance().stream(), scenarioMaps.stream())
-//                    .toList();
-//        }
+    private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling, Map<String, String> overrides) {
+        ParsingMap newParsingMap = parsingMap == null ? this.getStepParsingMap() : parsingMap;
 
-//        newParsingMap.overWriteEntries(ParsingMap.MapType.STEP_TABLE, scenarioMaps.toArray(new NodeMap[0]));
-
-        PickleStepArgument argument = overrides.containsKey("removeArgs") ?  null : rootStep.getArgument().orElse(null);
+        PickleStepArgument argument = overrides.containsKey("removeArgs") ? null : rootStep.getArgument().orElse(null);
         UnaryOperator<String> external = newParsingMap::resolveWholeText;
         PickleStepArgument newPickleStepArgument = isScenarioNameStep ? null : PickleStepArgUtils.transformPickleArgument(argument, external);
-        String newStepText = overrides.getOrDefault("newStepText",  rootStep.getText());
+        String newStepText = overrides.getOrDefault("newStepText", rootStep.getText());
 
         PickleStep pickleStep = new PickleStep(newPickleStepArgument, rootStep.getAstNodeIds(), rootStep.getId(), rootStep.getType().orElse(null), newParsingMap.resolveWholeText(newStepText));
 
@@ -305,7 +250,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         List<io.cucumber.core.stepexpression.Argument> args = (List<io.cucumber.core.stepexpression.Argument>) getProperty(pickleStepDefinitionMatch, "arguments");
         StepExtension newStep = new StepExtension((PickleStepTestStep) Reflect.newInstance(
                 "io.cucumber.core.runner.PickleStepTestStep",
-                (overrides.containsKey("RANDOMID") ? UUID.randomUUID() :  getId()),               // java.util.UUID
+                (overrides.containsKey("RANDOMID") ? UUID.randomUUID() : getId()),               // java.util.UUID
                 getUri(),                // java.net.URI
                 newGherikinMessageStep,        // io.cucumber.core.gherkin.Step (public)
                 pickleStepDefinitionMatch            // io.cucumber.core.runner.PickleStepDefinitionMatch (package-private instance is fine)
@@ -314,23 +259,22 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         System.out.println("aa3 args: " + args);
         newStep.setExecutionArguments(args.stream().map(io.cucumber.core.stepexpression.Argument::getValue).toList());
 
-        newStep.childSteps.addAll(childSteps);
+        newStep.getChildSteps().addAll(getChildSteps());
 
         if (ranParentStep != null) {
-            newStep.parentStep = ranParentStep;
-            ranParentStep.childSteps.set(ranParentStep.childSteps.indexOf(this), newStep);
+            newStep.setParentStep(ranParentStep);
+            replaceChildStep(this, newStep);
         } else {
-            newStep.parentStep = parentStep;
+            newStep.setParentStep(getParentStep());
         }
 
         if (ranPreviousSibling != null) {
-            newStep.previousSibling = ranPreviousSibling;
-            ranPreviousSibling.nextSibling = newStep;
+            newStep.setPreviousSibling(ranPreviousSibling);
         } else {
-            newStep.previousSibling = previousSibling;
+            newStep.setPreviousSibling(getPreviousSibling());
         }
-        newStep.stepParsingMap = newParsingMap;
-        newStep.nextSibling = nextSibling;
+        newStep.setStepParsingMap(newParsingMap);
+        newStep.setNextSibling(getNextSibling());
         newStep.nestingLevel = nestingLevel;
         newStep.stepTags = stepTags;
         newStep.isTemplateStep = false;
@@ -355,13 +299,9 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
     public void setHardFail() {
         this.hardFail = true;
-        postRunFlags.add(PostRunFlag.HARD_FAILED);
-        postRunFlags.add(PostRunFlag.FAILED);
     }
 
     public void setSoftFail() {
-        postRunFlags.add(PostRunFlag.SOFT_FAILED);
-        postRunFlags.add(PostRunFlag.FAILED);
         this.softFail = true;
     }
 
@@ -376,32 +316,25 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
 
     public StepExtension runNextSibling() {
+        StepExtension nextSibling = (StepExtension) getNextSibling();
         if (nextSibling == null)
             return null;
 
         StepExtension currentStep = nextSibling;
         if (nextSibling.isTemplateStep) {
             currentStep = nextSibling.updateStep(getScenarioState().getParsingMap(), null, this);
-            nextSibling = currentStep;
-            currentStep.previousSibling = this;
+            setNextSibling(currentStep);
+            currentStep.setPreviousSibling(this);
         }
         return currentStep.run(ranTestCase, ranBus, ranState, ranExecutionMode);
     }
 
     public StepExtension runFirstChild() {
-        if (childSteps.isEmpty())
+        if (getChildSteps().isEmpty())
             return null;
-        Integer r = ((List<Result>) getProperty(ranState, "stepResults")).size();
-        return childSteps.getFirst().updateStep(getScenarioState().getParsingMap(), this, null).run(ranTestCase, ranBus, ranState, ranExecutionMode);
+        return getChildSteps().getFirst().updateStep(getScenarioState().getParsingMap(), this, null).run(ranTestCase, ranBus, ranState, ranExecutionMode);
 
     }
-
-//    public StepExtension run(StepExtension previousExecution) {
-//        if (templateStep) {
-//            return updateStep(getScenarioState().getParsingMap()).run(previousExecution);
-//        }
-//        return run(previousExecution.ranTestCase, previousExecution.ranBus, previousExecution.ranState, previousExecution.ranExecutionMode);
-//    }
 
 
     public StepExtension run() {
@@ -409,13 +342,12 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     }
 
     public StepExtension run(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
-
+        StepExtension nextSibling = getNextSibling();
         if (nextSibling != null && nextSibling.metaStep) {
             if (nextSibling.isDataTableStep) {
                 StepExtension updatedDataTableStep = nextSibling.updateStep(getScenarioState().getParsingMap(), null, null);
-                nextSibling = nextSibling.nextSibling;
+               setNextSibling(nextSibling.getNextSibling());
             }
-
         }
 
 
@@ -432,7 +364,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         result = results.getLast();
 
 
-
         if (result.getStatus().equals(Status.FAILED) || result.getStatus().equals(Status.UNDEFINED)) {
             Throwable throwable = result.getError();
             if (throwable != null && (throwable.getClass().equals(SoftException.class) || throwable.getClass().equals(SoftRuntimeException.class)))
@@ -441,7 +372,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
                 setHardFail();
         }
 
-        if (!(containsAnyStepFlags(StepFlag.TRY) || stepExecution.isScenarioComplete() || containsAnyStepFlags(onScenarioFlags))) {
+        if (!(stepFlags.contains(IGNORE_FAILURES) || stepExecution.isScenarioComplete())) {
             if (isSoftFail())
                 stepExecution.setScenarioSoftFail();
             else if (isHardFail())
@@ -460,67 +391,26 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     }
 
 
-    public enum StepFlag {
-        ALWAYS_RUN, ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END, TRY, SKIP, IGNORE
-    }
-
-    private final StepFlag[] onScenarioFlags = new StepFlag[]{ON_SCENARIO_FAIL, ON_SCENARIO_SOFT_FAIL, ON_SCENARIO_HARD_FAIL, ON_SCENARIO_PASS, ON_SCENARIO_END};
-
-    public boolean containsAnyStepFlags(StepFlag... inputFlags) {
-        return Arrays.stream(inputFlags).anyMatch(stepFlags::contains);
-    }
-
-    public boolean containsAllStepFlags(StepFlag... inputFlags) {
-        return stepFlags.containsAll(Arrays.asList(inputFlags));
-    }
-
-    private final Set<StepFlag> stepFlags = EnumSet.noneOf(StepFlag.class);
-
-
-    public void intersectWith(StepFlag... items) {
-        if (parentStep == null)
-            return;
-        for (StepFlag f : items) if (parentStep.stepFlags.contains(f)) stepFlags.add(f);
-    }
-
-    public enum PostRunFlag {
-        SKIPPED, IGNORED, FAILED, SOFT_FAILED, HARD_FAILED, PASSED
-    }
-
-    public boolean containsAnyPostRunFlags(PostRunFlag... inputFlags) {
-        return Arrays.stream(inputFlags).anyMatch(postRunFlags::contains);
-    }
-
-    public boolean containsAllPostRunFlags(PostRunFlag... inputFlags) {
-        return postRunFlags.containsAll(Arrays.asList(inputFlags));
-    }
-
-    private final Set<PostRunFlag> postRunFlags = EnumSet.noneOf(PostRunFlag.class);
-
-
     public boolean shouldRun() {
-        if (parentStep == null)
+        if (getParentStep() == null)
             return true;
 
-        if (containsAnyStepFlags(StepFlag.ALWAYS_RUN))
+        if (stepFlags.contains(ALWAYS_RUN))
             return true;
 
-        if (containsAnyStepFlags(ON_SCENARIO_FAIL)) {
+        if (stepFlags.contains(RUN_IF_SCENARIO_FAILED)) {
             return (stepExecution.isScenarioFailed());
         }
 
-        if (containsAnyStepFlags(StepFlag.ON_SCENARIO_SOFT_FAIL))
+        if (stepFlags.contains(RUN_IF_SCENARIO_SOFT_FAILED))
             return isSoftFail();
-        if (containsAnyStepFlags(StepFlag.ON_SCENARIO_HARD_FAIL))
+        if (stepFlags.contains(RUN_IF_SCENARIO_HARD_FAILED))
             return isHardFail();
-        if (containsAnyStepFlags(ON_SCENARIO_PASS))
+        if (stepFlags.contains(RUN_IF_SCENARIO_PASSING))
             return !(isHardFail() || isSoftFail());
 
         return !skipped;
-//        if(skipped)
-//            return false;
-//
-//        return !stepExecution.isScenarioComplete();
+
     }
 
 
