@@ -52,8 +52,7 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
         return getStepText();
     }
 
-    private StepExtension templateStep;
-    private boolean isTemplateStep = true;
+
 //    private  boolean skipLogging;
 
     public final PickleStepTestStep delegate;
@@ -70,7 +69,6 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
 //    public final String pickleKey;
 
     private DataTable stepDataTable;
-
 
 
     private final boolean isCoreStep;
@@ -91,7 +89,6 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
     private final boolean isScenarioNameStep;
 
 
-
     public StepExtension(io.cucumber.core.gherkin.Pickle pickle, StepExecution stepExecution,
                          PickleStepTestStep step) {
         this(createScenarioPickleStepTestStep(pickle, step), stepExecution, pickle);
@@ -109,7 +106,6 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
             codeLocation = "";
         if (codeLocation.startsWith(ModularScenarios.class.getCanonicalName() + ".")) {
             this.overRideUUID = skipLogging;
-            this.letChildrenInheritMaps = false;
         }
 
         this.isScenarioNameStep = step.getStep().getText().contains(defaultMatchFlag + "Scenario");
@@ -145,7 +141,7 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
             stepTags.add(matcher.group().substring(1).replaceAll("\\[|\\]", ""));
         }
 
-        nestingLevel = (int) matcher.replaceAll("").chars().filter(ch -> ch == ':').count();
+        setNestingLevel((int) matcher.replaceAll("").chars().filter(ch -> ch == ':').count());
     }
 
 
@@ -170,29 +166,8 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
 //    private List<NodeMap> scenarioMaps = new ArrayList<>();
 
 
-    private boolean letChildrenInheritMaps = true;
-
-//    public List<NodeMap> getScenarioMapInheritance() {
-//        return letChildrenInheritMaps ? scenarioMaps : new ArrayList<>();
-//    }
-
-    public int getNestingLevel() {
-        return nestingLevel;
-    }
-
-    public void setNestingLevel(int nestingLevel) {
-        this.nestingLevel = nestingLevel;
-    }
-
-    private int nestingLevel;
-    public List<String> stepTags = new ArrayList<>();
-
-
-
-
-
     public final StepExecution stepExecution;
-        public Result result;
+    public Result result;
 
 
     public List<Object> getExecutionArguments() {
@@ -207,29 +182,28 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
     private List<Object> executionArguments;
 
 
-
     public StepExtension createMessageStep(String newStepText) {
         Map<String, String> map = new HashMap<>();
         map.put("newStepText", "MESSAGE:\"" + newStepText + "\"");
         map.put("removeArgs", "true");
         map.put("RANDOMID", "RANDOMID");
 
-        return updateStep(null, null, null, map);
+        return updateStep(map);
     }
 
     public StepExtension modifyStep(String newStepText) {
         Map<String, String> map = new HashMap<>();
         map.put("newStepText", newStepText);
-        return updateStep(null, null, null, map);
+        return updateStep(map);
     }
 
 
-    private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling) {
-        return updateStep(parsingMap, ranParentStep, ranPreviousSibling, new HashMap<>());
+    private StepExtension updateStep() {
+        return updateStep(new HashMap<>());
     }
 
-    private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling, Map<String, String> overrides) {
-        ParsingMap newParsingMap = parsingMap == null ? this.getStepParsingMap() : parsingMap;
+    private StepExtension updateStep(Map<String, String> overrides) {
+        ParsingMap newParsingMap = this.getStepParsingMap();
 
         PickleStepArgument argument = overrides.containsKey("removeArgs") ? null : rootStep.getArgument().orElse(null);
         UnaryOperator<String> external = newParsingMap::resolveWholeText;
@@ -257,30 +231,11 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
         ), stepExecution, parentPickle);
         System.out.println("aa3: " + newStep);
         System.out.println("aa3 args: " + args);
+
+
         newStep.setExecutionArguments(args.stream().map(io.cucumber.core.stepexpression.Argument::getValue).toList());
 
-        newStep.getChildSteps().addAll(getChildSteps());
-
-        if (ranParentStep != null) {
-            newStep.setParentStep(ranParentStep);
-            replaceChildStep(this, newStep);
-        } else {
-            newStep.setParentStep(getParentStep());
-        }
-
-        if (ranPreviousSibling != null) {
-            newStep.setPreviousSibling(ranPreviousSibling);
-        } else {
-            newStep.setPreviousSibling(getPreviousSibling());
-        }
-        newStep.setStepParsingMap(newParsingMap);
-        newStep.setNextSibling(getNextSibling());
-        newStep.nestingLevel = nestingLevel;
-        newStep.stepTags = stepTags;
-        newStep.isTemplateStep = false;
-        newStep.templateStep = this;
-        newStep.letChildrenInheritMaps = letChildrenInheritMaps;
-
+        copyRelationships(this, newStep);
         return newStep;
     }
 
@@ -316,23 +271,25 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
 
 
     public StepExtension runNextSibling() {
-        StepExtension nextSibling = (StepExtension) getNextSibling();
+        StepExtension nextSibling = getNextSibling();
         if (nextSibling == null)
             return null;
 
-        StepExtension currentStep = nextSibling;
+        StepExtension nextStepToRun = nextSibling;
         if (nextSibling.isTemplateStep) {
-            currentStep = nextSibling.updateStep(getScenarioState().getParsingMap(), null, this);
-            setNextSibling(currentStep);
-            currentStep.setPreviousSibling(this);
+            nextStepToRun = nextSibling.updateStep();
+            setNextSibling(nextStepToRun);
+            nextStepToRun.setPreviousSibling(this);
         }
-        return currentStep.run(ranTestCase, ranBus, ranState, ranExecutionMode);
+        return nextStepToRun.run(ranTestCase, ranBus, ranState, ranExecutionMode);
     }
 
     public StepExtension runFirstChild() {
         if (getChildSteps().isEmpty())
             return null;
-        return getChildSteps().getFirst().updateStep(getScenarioState().getParsingMap(), this, null).run(ranTestCase, ranBus, ranState, ranExecutionMode);
+        StepExtension firstChildToRun = getChildSteps().getFirst().updateStep();
+        firstChildToRun.setParentStep(this);
+        return firstChildToRun.run(ranTestCase, ranBus, ranState, ranExecutionMode);
 
     }
 
@@ -345,8 +302,8 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
         StepExtension nextSibling = getNextSibling();
         if (nextSibling != null && nextSibling.metaStep) {
             if (nextSibling.isDataTableStep) {
-                StepExtension updatedDataTableStep = nextSibling.updateStep(getScenarioState().getParsingMap(), null, null);
-               setNextSibling(nextSibling.getNextSibling());
+                StepExtension updatedDataTableStep = nextSibling.updateStep();
+                setNextSibling(nextSibling.getNextSibling());
             }
         }
 
@@ -392,6 +349,8 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
 
 
     public boolean shouldRun() {
+        System.out.println("@@should run " + this);
+        System.out.println("@@stepFlags " + stepFlags);
         if (getParentStep() == null)
             return true;
 
@@ -408,9 +367,7 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
             return isHardFail();
         if (stepFlags.contains(RUN_IF_SCENARIO_PASSING))
             return !(isHardFail() || isSoftFail());
-
         return !skipped;
-
     }
 
 
@@ -476,7 +433,7 @@ public class StepExtension extends StepRelationships implements PickleStepTestSt
 
     @Override
     public String getText() {
-        return "\u00A0\u00A0\u00A0\u00A0\u00A0".repeat(nestingLevel) + (gherikinMessageStep.getText().replaceFirst(defaultMatchFlag, ""));
+        return "\u00A0\u00A0\u00A0\u00A0\u00A0".repeat(getNestingLevel()) + (gherikinMessageStep.getText().replaceFirst(defaultMatchFlag, ""));
     }
 
     @Override

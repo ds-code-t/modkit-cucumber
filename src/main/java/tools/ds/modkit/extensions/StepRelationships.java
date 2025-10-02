@@ -14,6 +14,16 @@ public abstract class StepRelationships {
     protected boolean isFlagStep = false;
     protected final List<String> stepFlags = new ArrayList<>();
 
+    public int getNestingLevel() {
+        return nestingLevel;
+    }
+
+    public void setNestingLevel(int nestingLevel) {
+        this.nestingLevel = nestingLevel;
+    }
+
+    private int nestingLevel;
+    public List<String> stepTags = new ArrayList<>();
 
     public ParsingMap getStepParsingMap() {
         return stepParsingMap;
@@ -38,8 +48,11 @@ public abstract class StepRelationships {
         child.setParentStep((StepExtension) this);
         childSteps.add(child);
         child.setStepParsingMap(new ParsingMap(stepParsingMap));
-        if (isFlagStep)
+        if (isFlagStep) {
+            System.out.println("@@flag-step: "+ this);
+            System.out.println("@@flag-child-step: "+ child);
             child.stepFlags.addAll(stepFlags);
+        }
     }
 
 
@@ -99,4 +112,22 @@ public abstract class StepRelationships {
                 parentStep.getChildSteps().add(parentStep.getChildSteps().indexOf(nextSibling), insertNextSibling);
         }
     }
+
+    protected StepExtension templateStep;
+    protected boolean isTemplateStep = true;
+
+    public static void copyRelationships(StepExtension copyFrom, StepExtension copyTo)
+    {
+        copyTo.getChildSteps().addAll(copyFrom.getChildSteps());
+        copyTo.setParentStep(copyFrom.getParentStep());
+        copyTo.setPreviousSibling(copyFrom.getPreviousSibling());
+        copyTo.setStepParsingMap(copyFrom.getStepParsingMap());
+        copyTo.setNextSibling(copyFrom.getNextSibling());
+        copyTo.setNestingLevel(copyFrom.getNestingLevel());
+        copyTo.stepTags = copyFrom.stepTags;
+        copyTo.isTemplateStep = false;
+        copyTo.templateStep = copyFrom;
+        copyTo.stepFlags.addAll(copyFrom.stepFlags);
+    }
+
 }

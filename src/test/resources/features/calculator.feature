@@ -8,8 +8,8 @@ Feature: Tiny calculator
   Scenario: ssss 323
     Given a is 1 and b is 6
   : Given a is 11 and b is 6
-#  :: Given a is 22 and b is 6
-#    Given RUN IF SCENARIO FAILED
+  :: Given a is 22 and b is 6
+    Given RUN IF SCENARIO FAILED
   : Given a is 3 and b is 6
   : Given a is 4 and b is 6
   :: Given a is 5 and b is 6
