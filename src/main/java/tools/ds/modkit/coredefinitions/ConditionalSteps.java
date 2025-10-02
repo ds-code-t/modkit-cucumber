@@ -18,6 +18,7 @@ public class ConditionalSteps {
 
         StepExtension modifiedStep = currentStep.modifyStep(evaluatedString);
         System.out.println("@@modifiedStep: " + modifiedStep);
+        getScenarioState().getCurrentStep().insertNextSibling(modifiedStep);
     }
 
 }

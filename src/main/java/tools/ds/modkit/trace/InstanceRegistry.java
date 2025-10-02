@@ -19,7 +19,6 @@ public final class InstanceRegistry {
 
     /** Register value under each key in the current thread’s ScenarioState (no-op if none). */
     public static void register(Object value, Object... keys) {
-        System.out.println("@@Instanc## register: " + value);
         ScenarioState s = cur();
 
         if (s != null) s.register(value, keys);

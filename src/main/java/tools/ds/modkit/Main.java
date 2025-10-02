@@ -15,11 +15,9 @@ import java.util.Optional;
 @API(status = API.Status.STABLE)
 public class Main {
 static {
-    System.out.println("@@Static Main");
     EnsureInstalled.ensureOrDie();
 }
     public static void main(String... argv) {
-        System.out.println("@@main1");
         byte exitStatus = run(argv, Thread.currentThread().getContextClassLoader());
         System.exit(exitStatus);
     }
@@ -34,7 +32,6 @@ static {
      */
     public static byte run(String... argv) {
 
-        System.out.println("@@run1");
 
         return run(argv, Thread.currentThread().getContextClassLoader());
     }

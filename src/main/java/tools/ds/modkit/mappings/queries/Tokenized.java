@@ -107,22 +107,15 @@ public final class Tokenized {
 
 
     public List<JsonNode> getList(JsonNode root, String queryString) {
-        System.out.println("@@getList:=== " + queryString);
-        System.out.println("@@root= " + root);
         JsonNode returnedNode = getWithPath(root, queryString);
-        System.out.println("@@returnedNode:=== " + returnedNode);
 
         if (returnedNode == null)
             return null;
-        System.out.println("@@A1");
         if (returnedNode instanceof ArrayNode arrayNode)
             return arrayNode.valueStream().toList();
-        System.out.println("@@A2");
         List<JsonNode> nodeList = new ArrayList<>();
-        System.out.println("@@A3");
 
         nodeList.add(returnedNode);
-        System.out.println("@@A4: " + nodeList);
         return nodeList;
     }
 
@@ -140,8 +133,6 @@ public final class Tokenized {
     public static JsonNode getWithPath(JsonNode root, String passedQuery) {
         try {
             Expressions e = Expressions.parse(passedQuery.replaceAll("\\[\\*\\]", ""));
-            System.out.println("@@e:::::1 " + e);
-            System.out.println("@@e:::::2 " + e.evaluate(root));
             return e.evaluate(root);
         } catch (ParseException | IOException | EvaluateException ex) {
             return null;
@@ -189,21 +180,15 @@ public final class Tokenized {
                     if (i == 1 && processTopArrayFlag)
                         arrayNode.add(NullNode.instance);
 
-                    System.out.println("@@arrayNodeL::::: " + arrayNode);
                     Integer index = token.startsWith("[") ? token.equals("[]") ? arrayNode.size() : Integer.parseInt(token.substring(1, token.length() - 1)) : null;
-                    if (token.equals(topArrayFlag))
-                        System.out.println("@@index::::: " + index);
 
-                    System.out.println("@@=arrayNode1 " + arrayNode);
-                    System.out.println("@@=index1 " + index);
+
 
 
                     if (index < 0) {
                         ensureIndex(arrayNode, Math.abs(index));
                         index = arrayNode.size() + index;
                     }
-                    System.out.println("@@=arrayNode2 " + arrayNode);
-                    System.out.println("@@=index2 " + index);
                     currentNode = setArrayNode(arrayNode, index, valueToSet);
                 } else if (currentNode instanceof ObjectNode objectNode) {
                     currentNode = setProperty(objectNode, token, valueToSet);
@@ -270,8 +255,6 @@ public final class Tokenized {
 
 
     public static JsonNode ensureIndex(ArrayNode array, int index) {
-        System.out.println("@@=arrayNode3 " + array);
-        System.out.println("@@=index3 " + index);
 
         if (array == null || index < 0) {
             throw new IllegalArgumentException("ArrayNode is null or index < 0");

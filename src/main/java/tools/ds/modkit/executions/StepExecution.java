@@ -122,7 +122,6 @@ public class StepExecution {
     }
 
     public void setScenarioHardFail() {
-        System.out.println("@@setScenarioHardFail");
         this.scenarioHardFail = true;
         setScenarioComplete();
     }

@@ -1,8 +1,8 @@
 Feature: Tiny calculator
 
   Scenario: conditionals
-    * IF: true THEN: "Given a is 1 and b is 6"
-    Given a is 1 and b is 6
+    * IF: true THEN: "a is 1 and b is 6"
+#    Given a is 1 and b is 6
 #    * IF: HAVE-VALUE: [6,0,0,0] THEN: I am running a testlzz 1111zzaa\"aa and s ELSE: s
 
   Scenario: ssss 323

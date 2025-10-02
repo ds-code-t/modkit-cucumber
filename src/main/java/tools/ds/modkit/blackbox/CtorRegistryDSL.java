@@ -66,8 +66,6 @@ public final class CtorRegistryDSL {
         if (targets == null || targets.isEmpty()) return;
 
         for (Object target : targets) {
-            System.out.println("@@target: " + target);
-//            if(target.getClass())
 
             final String fqcn = toFqcn(target);
             if (fqcn == null || fqcn.isEmpty()) continue;
@@ -78,12 +76,9 @@ public final class CtorRegistryDSL {
                             .afterInstance(self -> {
 //                                if (!Registry.firstTimeForCtor(ctorKey, self)) return;
                                 if (self == null) return;
-                                System.out.println("@@target2: " + self
-                                        + " loader=" + System.identityHashCode(self.getClass().getClassLoader())
-                                        + " thread=" + Thread.currentThread().getName());
+
 
                                 if (self.getClass().getCanonicalName().equals(K_RUNNER)) {
-                                    //                                    System.out.println("@@foundRunner " + self);
                                     Options runnerOptions = (Options) getProperty(self, "runnerOptions");
                                     List<URI> currentGluePaths = (List<URI>) getProperty(runnerOptions, "glue");
                                     Glue glue = (Glue) getProperty(self, "glue");
@@ -93,7 +88,6 @@ public final class CtorRegistryDSL {
                                     currentGluePaths.addAll(newGluePaths);
                                     List<URI> gluePathsToRemove = toGluePath(DummySteps.class);
                                     currentGluePaths.removeAll(gluePathsToRemove);
-                                    System.out.println("@@currentGluePaths:: " + currentGluePaths);
                                     for (Backend backend : backends) {
                                         backend.loadGlue(glue, newGluePaths);
                                     }

@@ -8,6 +8,7 @@ import com.googlecode.aviator.runtime.type.AviatorNil;
 import com.googlecode.aviator.runtime.type.AviatorObject;
 import com.googlecode.aviator.runtime.type.AviatorString;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -95,17 +96,19 @@ public class AviatorFunctions {
 
         @Override
         public AviatorObject variadicCall(Map<String, Object> env, AviatorObject... args) {
+            System.out.println("@@GetBool "+ Arrays.stream(args).toList());
             if (args == null || args.length == 0) {
                 return AviatorBoolean.FALSE;
             }
 
             // Resolve the first argument against env
             Object resolved = args[0].getValue(env);  // <-- resolves identifiers & expressions
-
+            System.out.println("@@resolved: " + resolved);
             // If you want to keep your existing isTruthy(String) signature:
             String s = (resolved == null || resolved == AviatorNil.NIL) ? "" : String.valueOf(resolved);
+            System.out.println("@@s " + s);
             boolean result = isTruthy(s);  // your custom logic that takes String
-
+            System.out.println("@@result " + result);
             // If you have isTruthy(Object), you could instead do:
             // boolean result = isTruthy(resolved);
 

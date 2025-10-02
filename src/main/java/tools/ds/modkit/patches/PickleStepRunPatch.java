@@ -31,7 +31,6 @@ public final class PickleStepRunPatch {
 
                         .around(
                                 args -> {
-                                    System.out.println("@@around");
                                     Object testCase = args[0]; // io.cucumber.core.runner.TestCase (non-public)
                                     ObjFlags st = getFlag(testCase);
                                     if (st.equals(ObjFlags.RUNNING))
@@ -60,7 +59,6 @@ public final class PickleStepRunPatch {
                         )
 
                         .after((args, ret, thr) -> {
-                            System.out.println("@@after");
                             return ret;
                         })
 

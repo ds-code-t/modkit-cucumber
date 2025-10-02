@@ -7,7 +7,6 @@ import io.cucumber.plugin.event.TestRunStarted;
 
 public final class BootstrapPlugin implements ConcurrentEventListener {
     static  {
-        System.out.println("@@static block of BootstrapPlugin");
         EnsureInstalled.ensureOrDie();
     }
     @Override public void setEventPublisher(EventPublisher publisher) {

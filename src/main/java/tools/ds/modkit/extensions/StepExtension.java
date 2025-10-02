@@ -43,6 +43,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
     public Throwable storedThrowable;
 
+
     public String evalWithStepMaps(String expression) {
         return String.valueOf(eval(expression, stepParsingMap));
     }
@@ -109,11 +110,7 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
             this.letChildrenInheritMaps = false;
         }
 
-//        this.stepTextOverRide = (String) configs.getOrDefault("stepTextOverRide", null);
-        System.out.println("@@##$step: " + step.getStep().getText());
         this.isScenarioNameStep = step.getStep().getText().contains(defaultMatchFlag + "Scenario");
-//        this.isScenarioNameStep = (boolean) configs.getOrDefault("isScenarioNameStep", false);
-        System.out.println("@@isScenarioNameStep: " + isScenarioNameStep);
         this.parentPickle = pickle;
 
         this.isCoreStep = codeLocation.startsWith(MetaSteps.class.getPackageName() + ".");
@@ -139,7 +136,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
             stepTags.add(matcher.group().substring(1).replaceAll("\\[|\\]", ""));
         }
 
-        System.out.println("@@stepTags: " + stepTags);
         for (String s : stepTags)
             try {
                 stepFlags.add(StepFlag.valueOf(s.trim()));
@@ -250,8 +246,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     }
 
     public void setExecutionArguments(List<Object> executionArguments) {
-        System.out.println("@@setExecutionArguments for : " + getStepText());
-        System.out.println("@@setExecutionArguments: " + executionArguments);
         this.executionArguments = executionArguments;
         this.stepDataTable = executionArguments.stream().filter(DataTable.class::isInstance).map(DataTable.class::cast).findFirst().orElse(null);
     }
@@ -261,7 +255,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
 
     public StepExtension createMessageStep(String newStepText) {
-        System.out.println("@@createMessageStep? " + newStepText);
         Map<String,String> map = new HashMap<>();
         map.put("newStepText",  "MESSAGE:\"" + newStepText + "\"");
         map.put("removeArgs",  "true");
@@ -283,8 +276,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         return updateStep( parsingMap,  ranParentStep,  ranPreviousSibling, new HashMap<>());
     }
     private StepExtension updateStep(ParsingMap parsingMap, StepExtension ranParentStep, StepExtension ranPreviousSibling, Map<String,String> overrides) {
-        System.out.println("@@updateStep- " + this);
-        System.out.println("@@overrides- " + overrides);
         ParsingMap newParsingMap = parsingMap == null ? this.stepParsingMap : parsingMap;
 //        this.stepParsingMap = parsingMap;
 
@@ -293,18 +284,14 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 //                    .toList();
 //        }
 
-        System.out.println("@@parsingMap=: " + newParsingMap);
 //        newParsingMap.overWriteEntries(ParsingMap.MapType.STEP_TABLE, scenarioMaps.toArray(new NodeMap[0]));
 
         PickleStepArgument argument = overrides.containsKey("removeArgs") ?  null : rootStep.getArgument().orElse(null);
         UnaryOperator<String> external = newParsingMap::resolveWholeText;
         PickleStepArgument newPickleStepArgument = isScenarioNameStep ? null : PickleStepArgUtils.transformPickleArgument(argument, external);
         String newStepText = overrides.getOrDefault("newStepText",  rootStep.getText());
-        System.out.println("@@updateStep=1a : " + newStepText);
-        System.out.println("@@updateStep=1b : " + newParsingMap.resolveWholeText(newStepText));
 
         PickleStep pickleStep = new PickleStep(newPickleStepArgument, rootStep.getAstNodeIds(), rootStep.getId(), rootStep.getType().orElse(null), newParsingMap.resolveWholeText(newStepText));
-        System.out.println("@@pickleStep:##: " + pickleStep.getText());
 
         io.cucumber.core.gherkin.Step newGherikinMessageStep = (io.cucumber.core.gherkin.Step) Reflect.newInstance(
                 "io.cucumber.core.gherkin.messages.GherkinMessagesStep",
@@ -314,15 +301,8 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
                 gherikinMessageStep.getLocation(),
                 gherikinMessageStep.getKeyword()
         );
-        System.out.println("@@newGherikinMessageStep:##: " + newGherikinMessageStep.getText());
         Object pickleStepDefinitionMatch = getDefinition(getScenarioState().getRunner(), getScenarioState().getScenarioPickle(), newGherikinMessageStep);
-        System.out.println("aa1");
         List<io.cucumber.core.stepexpression.Argument> args = (List<io.cucumber.core.stepexpression.Argument>) getProperty(pickleStepDefinitionMatch, "arguments");
-        System.out.println("@@removeArgs: " + newGherikinMessageStep.getText());
-//        if (removeArgs)
-//            args = args.stream().filter(arg -> !(arg instanceof io.cucumber.core.stepexpression.DataTableArgument || arg instanceof io.cucumber.core.stepexpression.DocStringArgument)).toList();
-        args.forEach(s -> System.out.println("@@s.class: " + s.getClass()));
-        System.out.println("aa2");
         StepExtension newStep = new StepExtension((PickleStepTestStep) Reflect.newInstance(
                 "io.cucumber.core.runner.PickleStepTestStep",
                 (overrides.containsKey("RANDOMID") ? UUID.randomUUID() :  getId()),               // java.util.UUID
@@ -333,11 +313,8 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         System.out.println("aa3: " + newStep);
         System.out.println("aa3 args: " + args);
         newStep.setExecutionArguments(args.stream().map(io.cucumber.core.stepexpression.Argument::getValue).toList());
-        System.out.println("@@newStep:##: " + newStep.getText());
 
         newStep.childSteps.addAll(childSteps);
-//        System.out.println("@@update scenarioMaps: " + scenarioMaps);
-//        newStep.scenarioMaps.addAll(scenarioMaps);
 
         if (ranParentStep != null) {
             newStep.parentStep = ranParentStep;
@@ -360,10 +337,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         newStep.templateStep = this;
         newStep.letChildrenInheritMaps = letChildrenInheritMaps;
 
-        System.out.println("@@newStep-text111 " + newStep.getStepText());
-        System.out.println("@@unpadted-text " + getStepText());
-        System.out.println("@@newStep.nextSibling=== " + newStep.nextSibling);
-        System.out.println("@@updateStep=2 : " + newStep.getStepText());
         return newStep;
     }
 
@@ -405,7 +378,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     public StepExtension runNextSibling() {
         if (nextSibling == null)
             return null;
-        System.out.println("@@runNextSibling: " + nextSibling.getStepText());
 
         StepExtension currentStep = nextSibling;
         if (nextSibling.isTemplateStep) {
@@ -417,14 +389,9 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     }
 
     public StepExtension runFirstChild() {
-        System.out.println("\n\n========\n@@runFirstChild: " + this);
-        System.out.println("@@Children: " + childSteps.size());
         if (childSteps.isEmpty())
             return null;
-        System.out.println("@@FirstChild: " + childSteps.getFirst());
-        System.out.println("@@stepResults2== " + getStepText());
         Integer r = ((List<Result>) getProperty(ranState, "stepResults")).size();
-        System.out.println("@@result = " + r);
         return childSteps.getFirst().updateStep(getScenarioState().getParsingMap(), this, null).run(ranTestCase, ranBus, ranState, ranExecutionMode);
 
     }
@@ -438,28 +405,15 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
 
     public StepExtension run() {
-        System.out.println("@@@$$run: " + this);
         return run(ranTestCase, ranBus, ranState, ranExecutionMode);
     }
 
     public StepExtension run(TestCase testCase, EventBus bus, TestCaseState state, Object executionMode) {
-        System.out.println("@@run-step: " + getStepText());
-        System.out.println("@@run-getRuntimeOptions: " + getScenarioState().getRuntimeOptions());
-        System.out.println("@@run-getGlue: " + getScenarioState().getRuntimeOptions().getGlue());
-
 
         if (nextSibling != null && nextSibling.metaStep) {
             if (nextSibling.isDataTableStep) {
-                System.out.println("@@nextSibling text1: " + (nextSibling == null ? "null" : nextSibling.getStepText()));
                 StepExtension updatedDataTableStep = nextSibling.updateStep(getScenarioState().getParsingMap(), null, null);
-                System.out.println("@@nextSibling.stepDataTable = " + nextSibling.stepDataTable);
-                System.out.println("@@updatedDataTableStep.stepDataTable = " + updatedDataTableStep.stepDataTable);
-//                for (LinkedListMultimap<?, ?> map : toListOfMultimap(updatedDataTableStep.stepDataTable)) {
-//                    stepMaps.add(new NodeMap(map));
-//                }
-//                stepMaps.add(new NodeMap(toFlatMultimap(updatedDataTableStep.stepDataTable.asLists())));
                 nextSibling = nextSibling.nextSibling;
-                System.out.println("@@nextSibling text2: " + (nextSibling == null ? "null" : nextSibling.getStepText()));
             }
 
         }
@@ -469,24 +423,18 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
 
         getScenarioState().register(this, getUniqueKey(this));
 
-        System.out.println("@@skipped1: " + skipped);
         skipped = stepExecution.isScenarioComplete();
-        System.out.println("@@skipped2: " + skipped);
 
 
         executionMode = shouldRun() ? RUN(executionMode) : SKIP(executionMode);
         Object returnObj = invokeAnyMethod(delegate, "run", testCase, bus, state, executionMode);
-        System.out.println("@@stepResults== " + getStepText());
         List<Result> results = ((List<Result>) getProperty(state, "stepResults"));
         result = results.getLast();
 
 
-        System.out.println("\n\n===\n@@Step- " + getStepText());
-        System.out.println("@@REsults- " + result);
 
         if (result.getStatus().equals(Status.FAILED) || result.getStatus().equals(Status.UNDEFINED)) {
             Throwable throwable = result.getError();
-            System.out.println("@@throwable: " + throwable);
             if (throwable != null && (throwable.getClass().equals(SoftException.class) || throwable.getClass().equals(SoftRuntimeException.class)))
                 setSoftFail();
             else
@@ -494,33 +442,13 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         }
 
         if (!(containsAnyStepFlags(StepFlag.TRY) || stepExecution.isScenarioComplete() || containsAnyStepFlags(onScenarioFlags))) {
-            System.out.println("@@isHardFail(): " + isHardFail());
-            System.out.println("@@isSoftFail(): " + isSoftFail());
-
-            System.out.println("@@stepExecution.isScenarioComplete() " + stepExecution.isScenarioComplete());
-            System.out.println("@@!(stepExecution.isScenarioComplete() || containsAnyStepFlags(onScenarioFlags)) " + !(stepExecution.isScenarioComplete() || containsAnyStepFlags(onScenarioFlags)));
             if (isSoftFail())
                 stepExecution.setScenarioSoftFail();
             else if (isHardFail())
                 stepExecution.setScenarioHardFail();
-
-            System.out.println("@@isScenarioHardFail(): " + stepExecution.isScenarioHardFail());
-            System.out.println("@@isSoftFail(): " + stepExecution.isScenarioSoftFail());
-            System.out.println("@@isScenarioComplete(): " + stepExecution.isScenarioComplete());
-
         }
 
 
-        System.out.println("@@PARENT:: steps: " + getStepText());
-        System.out.println("@@childStep-: " + childSteps);
-
-
-//        for (StepExtension step : childSteps) {
-//            step.skipped = stepExecution.isScenarioComplete() || isFail() || skipped;
-//            intersectWith(onScenarioFlags);
-//            System.out.println("@@child steps: " + step.getStepText());
-//            step.run(testCase, bus, state, executionMode);
-//        }
         ranTestCase = testCase;
         ranBus = bus;
         ranState = state;
@@ -573,9 +501,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
     public boolean shouldRun() {
         if (parentStep == null)
             return true;
-        System.out.println("@@stepFlags: " + stepFlags);
-//        if (containsAnyStepFlags(onScenarioFlags))
-//            stepExecution.setScenarioComplete();
 
         if (containsAnyStepFlags(StepFlag.ALWAYS_RUN))
             return true;
@@ -591,7 +516,6 @@ public class StepExtension implements PickleStepTestStep, io.cucumber.plugin.eve
         if (containsAnyStepFlags(ON_SCENARIO_PASS))
             return !(isHardFail() || isSoftFail());
 
-        System.out.println("@@skipped: " + skipped);
         return !skipped;
 //        if(skipped)
 //            return false;

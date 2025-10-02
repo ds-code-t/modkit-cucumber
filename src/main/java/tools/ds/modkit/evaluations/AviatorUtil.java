@@ -125,9 +125,10 @@ public final class AviatorUtil {
         if (v == null) return false;
         if (v instanceof Boolean returnBool)
             return returnBool;
-        Object returnObj = invokeAnyMethod(v, "isEmpty");
-        if (returnObj instanceof Boolean returnBool)
-            return returnBool;
+        Object isEmpty = invokeAnyMethod(v, "isEmpty");
+        if (isEmpty instanceof Boolean isEmptyBool) {
+            return !isEmptyBool;
+        }
         return isStringTruthy(String.valueOf(v));
 
     }
